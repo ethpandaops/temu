@@ -1,0 +1,26 @@
+log_level: info
+processor:
+  name: temu-node
+  outputs:
+    - name: xatu-server
+      type: xatu
+      config:
+        address: localhost:8080
+        tls: false
+        maxQueueSize: 500000
+        batchTimeout: 1s
+        exportTimeout: 15s
+        maxExportBatchSize: 1000
+        workers: 5
+  ethereum:
+    implementation: teku
+    genesis_time: 0  # Overridden by Teku at runtime
+    seconds_per_slot: 12
+    slots_per_epoch: 32
+    network:
+      name: unknown  # Can be set for identification purposes
+      id: 0
+  client:
+    name: temu
+    version: 1.0.0
+  # ntpServer: time.google.com

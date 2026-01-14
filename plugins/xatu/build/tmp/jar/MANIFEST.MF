@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Specification-Title: teku-plugins-xatu
+Specification-Version: develop
+Implementation-Title: teku-plugins-xatu
+Implementation-Version: UNKNOWN+gfc3f967
+
