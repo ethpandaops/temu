@@ -1,0 +1,735 @@
+diff --git a/.gitignore b/.gitignore
+index 8c02018..4fa2405 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -57,4 +57,8 @@ eth-reference-tests/src/referenceTest/resources/consensus-spec-tests/
+ .jqwik-database
+ 
+ /teku.db
+-node_modules
+\ No newline at end of file
++node_modules
++
++# Xatu build artifacts
++/libxatu.so
++/libxatu.h
+\ No newline at end of file
+diff --git a/build.gradle b/build.gradle
+index 805d33d..c06b713 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -666,6 +666,28 @@ task localDocker {
+       from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
+       into(dockerBuildDir)
+     }
++    // Download and copy xatu native library
++    def xatuVersion = "v0.0.6"
++    def libxatuFile = file("${projectDir}/libxatu.so")
++    if (!libxatuFile.exists()) {
++      def platform = "linux"
++      def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++      def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++      def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++      println "Downloading xatu-sidecar from ${url}..."
++      def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++      tarFile.parentFile.mkdirs()
++      new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++      exec {
++        commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++      }
++      tarFile.delete()
++      println "Downloaded libxatu.so successfully"
++    }
++    copy {
++      from libxatuFile
++      into(dockerBuildDir)
++    }
+     exec {
+       def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
+       workingDir dockerBuildDir
+diff --git a/docker/jdk21/Dockerfile b/docker/jdk21/Dockerfile
+index 2c12c62..1ee51f2 100644
+--- a/docker/jdk21/Dockerfile
++++ b/docker/jdk21/Dockerfile
+@@ -32,9 +32,15 @@ WORKDIR /opt/teku
+ # copy application (with libraries inside)
+ COPY --chown=teku:teku teku /opt/teku/
+ 
++# Copy xatu native library
++COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
++
+ # Default to UTF-8 locale
+ ENV LANG C.UTF-8
+ 
++# Ensure xatu library is discoverable
++ENV LD_LIBRARY_PATH="/usr/lib"
++
+ ENV TEKU_REST_API_INTERFACE="0.0.0.0"
+ ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
+ ENV TEKU_METRICS_INTERFACE="0.0.0.0"
+diff --git a/ethereum/events/build.gradle b/ethereum/events/build.gradle
+index db73ac5..d126434 100644
+--- a/ethereum/events/build.gradle
++++ b/ethereum/events/build.gradle
+@@ -1,5 +1,10 @@
+ dependencies {
+   api project(':infrastructure:events')
++  api project(':infrastructure:ssz')
++  api project(':infrastructure:unsigned')
++
++  implementation 'io.consensys.tuweni:tuweni-bytes'
++
+   testFixturesImplementation project(':infrastructure:unsigned')
+ }
+ 
+diff --git a/networking/eth2/build.gradle b/networking/eth2/build.gradle
+index 5a1fcd6..3248a1c 100644
+--- a/networking/eth2/build.gradle
++++ b/networking/eth2/build.gradle
+@@ -17,6 +17,7 @@ dependencies {
+   implementation project(':storage:api')
+   implementation project(':services:zkchain')
+   implementation project(':infrastructure:serviceutils')
++  implementation project(':infrastructure:version')
+ 
+   implementation 'io.libp2p:jvm-libp2p'
+   implementation 'io.netty:netty-codec-http'
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
+index 1aea05e..8981117 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
+@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
+ import tech.pegasys.teku.infrastructure.async.AsyncRunner;
+ import tech.pegasys.teku.infrastructure.async.SafeFuture;
+ import tech.pegasys.teku.infrastructure.bytes.Bytes4;
++import tech.pegasys.teku.infrastructure.events.EventChannels;
+ import tech.pegasys.teku.infrastructure.ssz.SszData;
+ import tech.pegasys.teku.infrastructure.ssz.schema.SszSchema;
+ import tech.pegasys.teku.infrastructure.unsigned.UInt64;
+@@ -76,7 +77,8 @@ public abstract class AbstractGossipManager<T extends SszData> implements Gossip
+                 recentChainData.getSpec(), forkInfo.getFork(), getEpochForMessage),
+             gossipType,
+             networkingConfig,
+-            debugDataDumper);
++            debugDataDumper,
++            null); // EventChannels will be injected later
+     this.gossipEncoding = gossipEncoding;
+     this.gossipFailureLogger = gossipFailureLogger;
+     this.getSlotForMessage = getSlotForMessage;
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
+index eaa8d33..09a4403 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
+@@ -188,7 +188,8 @@ public class BlobSidecarGossipManager implements GossipManager {
+             blobSidecar -> spec.computeEpochAtSlot(blobSidecar.getSlot())),
+         gossipType,
+         spec.getNetworkingConfig(),
+-        debugDataDumper);
++        debugDataDumper,
++        null); // EventChannels not needed for blob sidecars
+   }
+ 
+   private record TopicSubnetIdAwareOperationProcessor(
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
+index 9e6883b..30b6a81 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
+@@ -89,6 +89,7 @@ public class SyncCommitteeSubnetSubscriptions extends CommitteeSubnetSubscriptio
+             message -> spec.computeEpochAtSlot(message.getSlot())),
+         schemaDefinitions.getSyncCommitteeMessageSchema(),
+         spec.getNetworkingConfig(),
+-        debugDataDumper);
++        debugDataDumper,
++        null); // EventChannels not needed for sync committee messages
+   }
+ }
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
+index 03bc1cb..396a2ca 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
+@@ -58,7 +58,8 @@ public class DataColumnSidecarTopicHandler {
+             message -> spec.computeEpochAtSlot(message.getSlot())),
+         dataColumnSidecarSchema,
+         spec.getNetworkingConfig(),
+-        debugDataDumper);
++        debugDataDumper,
++        null); // EventChannels not needed for data column sidecars
+   }
+ 
+   private static class TopicSubnetIdAwareOperationProcessor
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
+index 9c12b6f..91cbb27 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
+@@ -21,9 +21,13 @@ import java.util.concurrent.RejectedExecutionException;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.tuweni.bytes.Bytes;
++import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
++import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedChannel;
++import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
+ import tech.pegasys.teku.infrastructure.async.AsyncRunner;
+ import tech.pegasys.teku.infrastructure.async.SafeFuture;
+ import tech.pegasys.teku.infrastructure.bytes.Bytes4;
++import tech.pegasys.teku.infrastructure.events.EventChannels;
+ import tech.pegasys.teku.infrastructure.exceptions.ExceptionUtil;
+ import tech.pegasys.teku.infrastructure.ssz.SszData;
+ import tech.pegasys.teku.infrastructure.ssz.schema.SszSchema;
+@@ -63,6 +67,7 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+   // every slot of mainnet config
+   private final Throttler<Logger> loggerThrottler = new Throttler<>(LOG, UInt64.valueOf(12));
+ 
++  @SuppressWarnings("unused") // eventChannels kept for API compatibility, using EventChannelsHolder
+   public Eth2TopicHandler(
+       final RecentChainData recentChainData,
+       final AsyncRunner asyncRunner,
+@@ -73,7 +78,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+       final OperationValidator<MessageT> forkValidator,
+       final SszSchema<MessageT> messageType,
+       final NetworkingSpecConfig networkingConfig,
+-      final DebugDataDumper debugDataDumper) {
++      final DebugDataDumper debugDataDumper,
++      final EventChannels eventChannels) {
+     this.asyncRunner = asyncRunner;
+     this.processor = processor;
+     this.gossipEncoding = gossipEncoding;
+@@ -89,6 +95,7 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+     this.topic = GossipTopics.getTopic(forkDigest, topicName, gossipEncoding);
+   }
+ 
++  @SuppressWarnings("unused") // eventChannels kept for API compatibility, using EventChannelsHolder
+   public Eth2TopicHandler(
+       final RecentChainData recentChainData,
+       final AsyncRunner asyncRunner,
+@@ -99,7 +106,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+       final OperationValidator<MessageT> forkValidator,
+       final SszSchema<MessageT> messageType,
+       final NetworkingSpecConfig networkingConfig,
+-      final DebugDataDumper debugDataDumper) {
++      final DebugDataDumper debugDataDumper,
++      final EventChannels eventChannels) {
+     this(
+         recentChainData,
+         asyncRunner,
+@@ -110,7 +118,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+         forkValidator,
+         messageType,
+         networkingConfig,
+-        debugDataDumper);
++        debugDataDumper,
++        eventChannels);
+   }
+ 
+   @Override
+@@ -129,6 +138,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+                           .process(deserialized, message.getArrivalTimestamp())
+                           .thenApply(
+                               internalValidation -> {
++                                // Publish event for accepted messages
++                                if (internalValidation.isAccept()) {
++                                  EventChannelsHolder.get().ifPresent(
++                                      channels -> {
++                                        GossipMessageAcceptedEvent event = new GossipMessageAcceptedEvent(
++                                            deserialized,
++                                            getTopic(),
++                                            message.getMessageId(),
++                                            message.getArrivalTimestamp(),
++                                            message.getTransportPeerId(),
++                                            message.getOriginalMessage().size());
++                                        channels
++                                            .getPublisher(GossipMessageAcceptedChannel.class)
++                                            .onGossipMessageAccepted(event);
++                                      });
++                                }
+                                 processMessage(internalValidation, message);
+                                 return GossipSubValidationUtil.fromInternalValidationResult(
+                                     internalValidation);
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
+index 04efc1c..a7c5452 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
+@@ -51,6 +51,7 @@ public class ExecutionProofTopicHandler {
+             __ -> spec.computeEpochAtSlot(recentChainData.getHeadSlot())),
+         executionProofSchema,
+         recentChainData.getSpec().getNetworkingConfig(),
+-        debugDataDumper);
++        debugDataDumper,
++        null); // EventChannels not needed for execution proofs
+   }
+ }
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
+index 32decfb..166155a 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
+@@ -57,6 +57,7 @@ public class SingleAttestationTopicHandler {
+             message -> spec.computeEpochAtSlot(message.getData().getSlot())),
+         attestationSchema.castTypeToAttestationSchema(),
+         spec.getNetworkingConfig(),
+-        debugDataDumper);
++        debugDataDumper,
++        null); // EventChannels not needed for single attestations
+   }
+ }
+diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
+index 973abed..ebf3aa7 100644
+--- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
++++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
+@@ -39,6 +39,18 @@ public interface PreparedGossipMessage {
+ 
+   Optional<UInt64> getArrivalTimestamp();
+ 
++  /**
++   * Returns the transport peer ID if available.
++   *
++   * <p>Note: This is the relay (transport) peer that delivered the message to this node, not the
++   * original publishing peer. In GossipSub privacy modes, the origin is intentionally not exposed.
++   *
++   * @return an optional base58 peer ID of the relay peer
++   */
++  default Optional<String> getTransportPeerId() {
++    return Optional.empty();
++  }
++
+   class DecodedMessageResult {
+     private final Optional<Bytes> decodedMessage;
+     private final Optional<Throwable> decodingException;
+diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
+index 7ca3341..45db611 100644
+--- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
++++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
+@@ -13,12 +13,15 @@
+ 
+ package tech.pegasys.teku.networking.p2p.libp2p.gossip;
+ 
++import io.libp2p.core.PeerId;
+ import io.libp2p.core.pubsub.MessageApi;
+ import io.libp2p.core.pubsub.PubsubPublisherApi;
+ import io.libp2p.core.pubsub.Topic;
+ import io.libp2p.core.pubsub.ValidationResult;
++import io.libp2p.pubsub.AbstractPubsubMessage;
+ import io.libp2p.pubsub.PubsubMessage;
+ import io.netty.buffer.Unpooled;
++import java.lang.reflect.Method;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Function;
+ import org.apache.logging.log4j.LogManager;
+@@ -40,6 +43,8 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
+   private final PubsubPublisherApi publisher;
+   private final TopicHandler handler;
+   private final Counter messageCounter;
++  private final Counter transportPeerPresentCounter;
++  private final Counter transportPeerMissingCounter;
+ 
+   public GossipHandler(
+       final MetricsSystem metricsSystem,
+@@ -57,6 +62,24 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
+                 "Total number of gossip messages received (avoid libp2p deduplication)",
+                 "topic")
+             .labels(topic.getTopic());
++
++    this.transportPeerPresentCounter =
++        metricsSystem
++            .createLabelledCounter(
++                TekuMetricCategory.LIBP2P,
++                "gossip_transport_peer_present_total",
++                "Total number of gossip messages where a transport peer was present",
++                "topic")
++            .labels(topic.getTopic());
++
++    this.transportPeerMissingCounter =
++        metricsSystem
++            .createLabelledCounter(
++                TekuMetricCategory.LIBP2P,
++                "gossip_transport_peer_missing_total",
++                "Total number of gossip messages where a transport peer was missing",
++                "topic")
++            .labels(topic.getTopic());
+   }
+ 
+   @Override
+@@ -74,6 +97,28 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
+     LOG.trace("Received message for topic {}", topic);
+ 
+     final PubsubMessage pubsubMessage = message.getOriginalMessage();
++
++    // Try to get transport peer from the modified jvm-libp2p using reflection
++    try {
++      if (pubsubMessage instanceof AbstractPubsubMessage) {
++        Method method = pubsubMessage.getClass().getMethod("getTransportPeer");
++        Object result = method.invoke(pubsubMessage);
++        if (result instanceof PeerId) {
++          transportPeerPresentCounter.inc();
++        } else {
++          transportPeerMissingCounter.inc();
++        }
++      } else {
++        transportPeerMissingCounter.inc();
++      }
++    } catch (NoSuchMethodException e) {
++      // Method not available in this version of jvm-libp2p, skip silently
++      transportPeerMissingCounter.inc();
++    } catch (Exception e) {
++      LOG.debug("Could not get transport peer: {}", e.getMessage());
++      transportPeerMissingCounter.inc();
++    }
++
+     if (!(pubsubMessage instanceof PreparedPubsubMessage gossipPubsubMessage)) {
+       throw new IllegalArgumentException(
+           "Don't know this PubsubMessage implementation: " + pubsubMessage.getClass());
+diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
+index 3724bb5..fbef0a0 100644
+--- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
++++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
+@@ -15,13 +15,19 @@ package tech.pegasys.teku.networking.p2p.libp2p.gossip;
+ 
+ import com.google.common.base.Supplier;
+ import com.google.common.base.Suppliers;
++import io.libp2p.core.PeerId;
+ import io.libp2p.core.pubsub.MessageApi;
+ import io.libp2p.etc.types.WBytes;
+ import io.libp2p.pubsub.AbstractPubsubMessage;
+ import io.libp2p.pubsub.PubsubMessage;
+ import io.libp2p.pubsub.gossip.GossipRouter;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
++import java.util.Optional;
++import org.apache.tuweni.bytes.Bytes;
+ import org.jetbrains.annotations.NotNull;
+ import pubsub.pb.Rpc.Message;
++import tech.pegasys.teku.infrastructure.unsigned.UInt64;
+ import tech.pegasys.teku.networking.p2p.gossip.PreparedGossipMessage;
+ 
+ /**
+@@ -37,6 +43,7 @@ public class PreparedPubsubMessage extends AbstractPubsubMessage {
+   private final Message protobufMessage;
+   private final PreparedGossipMessage preparedMessage;
+   private final Supplier<WBytes> cachedMessageId;
++  private PreparedGossipMessage cachedPreparedWithTransport;
+ 
+   public PreparedPubsubMessage(
+       final Message protobufMessage, final PreparedGossipMessage preparedMessage) {
+@@ -59,6 +66,58 @@ public class PreparedPubsubMessage extends AbstractPubsubMessage {
+   }
+ 
+   public PreparedGossipMessage getPreparedMessage() {
+-    return preparedMessage;
++    // Lazily cache a wrapper that reads transport peer on demand
++    PreparedGossipMessage local = cachedPreparedWithTransport;
++    if (local == null) {
++      local = new PreparedGossipMessageWithTransportPeer(preparedMessage, this);
++      cachedPreparedWithTransport = local;
++    }
++    return local;
++  }
++
++  private static class PreparedGossipMessageWithTransportPeer implements PreparedGossipMessage {
++    private final PreparedGossipMessage delegate;
++    private final PreparedPubsubMessage parent;
++
++    PreparedGossipMessageWithTransportPeer(
++        final PreparedGossipMessage delegate, final PreparedPubsubMessage parent) {
++      this.delegate = delegate;
++      this.parent = parent;
++    }
++
++    @Override
++    public Bytes getMessageId() {
++      return delegate.getMessageId();
++    }
++
++    @Override
++    public DecodedMessageResult getDecodedMessage() {
++      return delegate.getDecodedMessage();
++    }
++
++    @Override
++    public Bytes getOriginalMessage() {
++      return delegate.getOriginalMessage();
++    }
++
++    @Override
++    public Optional<UInt64> getArrivalTimestamp() {
++      return delegate.getArrivalTimestamp();
++    }
++
++    @Override
++    public Optional<String> getTransportPeerId() {
++      try {
++        // Use reflection to call getTransportPeer() if available (from modified jvm-libp2p)
++        Method method = parent.getClass().getMethod("getTransportPeer");
++        Object result = method.invoke(parent);
++        if (result instanceof PeerId peerId) {
++          return Optional.of(peerId.toBase58());
++        }
++      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
++        // Method not available in this version of jvm-libp2p
++      }
++      return Optional.empty();
++    }
+   }
+ }
+diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
+index 6226918..3a6ae50 100644
+--- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
++++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
+@@ -59,6 +59,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blobs.RecentBlobSidecarsFetcher;
+ import tech.pegasys.teku.beacon.sync.gossip.blocks.RecentBlocksFetcher;
+ import tech.pegasys.teku.beaconrestapi.BeaconRestApi;
+ import tech.pegasys.teku.beaconrestapi.JsonTypeDefinitionBeaconRestApi;
++import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
+ import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
+ import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
+ import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
+@@ -1873,6 +1874,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+       return;
+     }
+ 
++    // Initialize Xatu plugin if configured
++    initializeXatuPlugin();
++
+     DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
+     final Optional<Integer> maybeUdpPort =
+         discoveryConfig.isDiscoveryEnabled()
+@@ -2365,6 +2369,43 @@ public class BeaconChainController extends Service implements BeaconChainControl
+         genesisState.getGenesisTime());
+   }
+ 
++  private void initializeXatuPlugin() {
++    // Check if Xatu configuration is provided
++    String xatuConfig = System.getProperty("xatu.config");
++    if (xatuConfig == null) {
++      xatuConfig = System.getenv("XATU_CONFIG");
++    }
++
++    if (xatuConfig != null) {
++      try {
++        // Set EventChannelsHolder for gossip handlers to use
++        EventChannelsHolder.set(eventChannels);
++
++        // Get genesis time from chain data
++        UInt64 genesisTime = UInt64.ZERO;
++        if (recentChainData != null && recentChainData.getGenesisTime() != null) {
++          genesisTime = recentChainData.getGenesisTime();
++        }
++
++        // Initialize Xatu plugin with config path
++        Class<?> xatuPluginClass = Class.forName("tech.pegasys.teku.plugin.xatu.XatuPlugin");
++        Object xatuPlugin = xatuPluginClass
++            .getConstructor(String.class)
++            .newInstance(xatuConfig);
++
++        // Call initialize with event channels and genesis time
++        xatuPluginClass.getMethod("initialize", EventChannels.class, UInt64.class)
++            .invoke(xatuPlugin, eventChannels, genesisTime);
++
++        LOG.info("Xatu plugin initialized with config: {}, genesis_time: {}", xatuConfig, genesisTime);
++      } catch (ClassNotFoundException e) {
++        LOG.debug("Xatu plugin not available");
++      } catch (Exception e) {
++        LOG.error("Failed to initialize Xatu plugin", e);
++      }
++    }
++  }
++
+   protected void onStoreInitialized() {
+     UInt64 genesisTime = recentChainData.getGenesisTime();
+     UInt64 currentTime = timeProvider.getTimeInSeconds();
+diff --git a/settings.gradle b/settings.gradle
+index 06e1fc9..d0b85ec 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -47,6 +47,7 @@ include 'infrastructure:yaml'
+ include 'networking:eth2'
+ include 'networking:nat'
+ include 'networking:p2p'
++include 'plugins:xatu'
+ include 'services'
+ include 'services:executionlayer'
+ include 'services:powchain'
+diff --git a/teku/build.gradle b/teku/build.gradle
+index ee68a3b..c8225f9 100644
+--- a/teku/build.gradle
++++ b/teku/build.gradle
+@@ -29,6 +29,7 @@ dependencies {
+   implementation project(':networking:eth2')
+   implementation project(':networking:nat')
+   implementation project(':services:beaconchain')
++  implementation project(':plugins:xatu')
+   implementation project(':services:bootnode')
+   implementation project(':services:chainstorage')
+   implementation project(':services:executionlayer')
+diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
+index 9be7b10..c1f3c0f 100644
+--- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
++++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
+@@ -457,6 +457,13 @@ public class P2POptions {
+       fallbackValue = "true")
+   private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
+ 
++  @Option(
++      names = {"--xatu-config"},
++      paramLabel = "<FILE>",
++      description = "Path to Xatu configuration file",
++      arity = "0..1")
++  private String xatuConfigPath = null;
++
+   @Option(
+       names = {"--Xexecution-proof-topics-enabled"},
+       paramLabel = "<BOOLEAN>",
+@@ -681,6 +688,11 @@ public class P2POptions {
+   }
+ 
+   public void configure(final TekuConfiguration.Builder builder) {
++    // Pass Xatu config to system property if provided via CLI
++    if (xatuConfigPath != null) {
++      System.setProperty("xatu.config", xatuConfigPath);
++    }
++
+     // From a discovery configuration perspective, direct peers are static peers
+     p2pStaticPeers.addAll(p2pDirectPeers);
+ 
+
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java
+new file mode 100644
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java
+@@ -0,0 +1,40 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import java.util.Optional;
++import tech.pegasys.teku.infrastructure.events.EventChannels;
++
++/**
++ * Static holder for EventChannels to allow gossip handlers to publish events without constructor
++ * injection through the entire call chain.
++ */
++public final class EventChannelsHolder {
++
++  private static volatile EventChannels instance;
++
++  private EventChannelsHolder() {}
++
++  public static void set(final EventChannels eventChannels) {
++    instance = eventChannels;
++  }
++
++  public static Optional<EventChannels> get() {
++    return Optional.ofNullable(instance);
++  }
++
++  public static void clear() {
++    instance = null;
++  }
++}
+
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java
+new file mode 100644
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java
+@@ -0,0 +1,20 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import tech.pegasys.teku.infrastructure.events.VoidReturningChannelInterface;
++
++public interface GossipMessageAcceptedChannel extends VoidReturningChannelInterface {
++  void onGossipMessageAccepted(GossipMessageAcceptedEvent event);
++}
+
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java
+new file mode 100644
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java
+@@ -0,0 +1,67 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import java.util.Optional;
++import org.apache.tuweni.bytes.Bytes;
++import tech.pegasys.teku.infrastructure.ssz.SszData;
++import tech.pegasys.teku.infrastructure.unsigned.UInt64;
++
++public class GossipMessageAcceptedEvent {
++  private final SszData message;
++  private final String topic;
++  private final Bytes messageId;
++  private final Optional<UInt64> arrivalTimestamp;
++  private final Optional<String> transportPeerId;
++  private final int messageSize;
++
++  public GossipMessageAcceptedEvent(
++      final SszData message,
++      final String topic,
++      final Bytes messageId,
++      final Optional<UInt64> arrivalTimestamp,
++      final Optional<String> transportPeerId,
++      final int messageSize) {
++    this.message = message;
++    this.topic = topic;
++    this.messageId = messageId;
++    this.arrivalTimestamp = arrivalTimestamp;
++    this.transportPeerId = transportPeerId;
++    this.messageSize = messageSize;
++  }
++
++  public SszData getMessage() {
++    return message;
++  }
++
++  public String getTopic() {
++    return topic;
++  }
++
++  public Bytes getMessageId() {
++    return messageId;
++  }
++
++  public Optional<UInt64> getArrivalTimestamp() {
++    return arrivalTimestamp;
++  }
++
++  public Optional<String> getTransportPeerId() {
++    return transportPeerId;
++  }
++
++  public int getMessageSize() {
++    return messageSize;
++  }
++}
