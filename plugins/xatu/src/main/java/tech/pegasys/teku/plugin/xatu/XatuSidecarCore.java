@@ -39,9 +39,7 @@ import tech.pegasys.teku.spec.datastructures.blocks.SignedBeaconBlock;
 import tech.pegasys.teku.spec.datastructures.operations.Attestation;
 import tech.pegasys.teku.spec.datastructures.operations.SignedAggregateAndProof;
 
-/**
- * Core xatu sidecar functionality. Manages event batching and native library communication.
- */
+/** Core xatu sidecar functionality. Manages event batching and native library communication. */
 public class XatuSidecarCore {
   private static final Logger LOG = LogManager.getLogger();
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -94,8 +92,9 @@ public class XatuSidecarCore {
 
       // Start the batch flush scheduler
       @SuppressWarnings("unused")
-      var ignored = scheduler.scheduleAtFixedRate(
-          this::flushBatch, FLUSH_INTERVAL_MS, FLUSH_INTERVAL_MS, TimeUnit.MILLISECONDS);
+      var ignored =
+          scheduler.scheduleAtFixedRate(
+              this::flushBatch, FLUSH_INTERVAL_MS, FLUSH_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
       LOG.info("Xatu sidecar initialized successfully with config: {}", configPath);
       return true;
@@ -106,9 +105,7 @@ public class XatuSidecarCore {
     }
   }
 
-  /**
-   * Inject genesis time into YAML config content, overriding the existing value.
-   */
+  /** Inject genesis time into YAML config content, overriding the existing value. */
   private String injectGenesisTime(final String yamlContent, final long genesisTime) {
     // Replace existing genesis_time value in the YAML
     String pattern = "(genesis_time:\\s*)\\d+";
@@ -227,7 +224,8 @@ public class XatuSidecarCore {
       eventNode.put("source_root", attestation.getData().getSource().getRoot().toHexString());
       eventNode.put("target_root", attestation.getData().getTarget().getRoot().toHexString());
       if (!attestation.isSingleAttestation()) {
-        eventNode.put("aggregation_bits", attestation.getAggregationBits().sszSerialize().toHexString());
+        eventNode.put(
+            "aggregation_bits", attestation.getAggregationBits().sszSerialize().toHexString());
       } else {
         eventNode.put("aggregation_bits", "");
       }
@@ -241,15 +239,21 @@ public class XatuSidecarCore {
       eventNode.put("timestamp_ms", timestampMs);
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
-      eventNode.put("proposer_index", blobSidecar.getSignedBeaconBlockHeader().getMessage().getProposerIndex().longValue());
+      eventNode.put(
+          "proposer_index",
+          blobSidecar.getSignedBeaconBlockHeader().getMessage().getProposerIndex().longValue());
       eventNode.put("blob_index", blobSidecar.getIndex().longValue());
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
       eventNode.put("topic", topic);
       eventNode.put("block_root", blobSidecar.getBlockRoot().toHexString());
-      eventNode.put("parent_root", blobSidecar.getSignedBeaconBlockHeader().getMessage().getParentRoot().toHexString());
-      eventNode.put("state_root", blobSidecar.getSignedBeaconBlockHeader().getMessage().getStateRoot().toHexString());
+      eventNode.put(
+          "parent_root",
+          blobSidecar.getSignedBeaconBlockHeader().getMessage().getParentRoot().toHexString());
+      eventNode.put(
+          "state_root",
+          blobSidecar.getSignedBeaconBlockHeader().getMessage().getStateRoot().toHexString());
       return Optional.of(eventNode);
 
     } else if (message instanceof DataColumnSidecar dataColumnSidecar) {
@@ -267,11 +271,14 @@ public class XatuSidecarCore {
       eventNode.put("topic", topic);
       eventNode.put("block_root", dataColumnSidecar.getBeaconBlockRoot().toHexString());
       // Get optional header fields if available
-      dataColumnSidecar.getMaybeSignedBlockHeader().ifPresent(header -> {
-        eventNode.put("proposer_index", header.getMessage().getProposerIndex().longValue());
-        eventNode.put("parent_root", header.getMessage().getParentRoot().toHexString());
-        eventNode.put("state_root", header.getMessage().getStateRoot().toHexString());
-      });
+      dataColumnSidecar
+          .getMaybeSignedBlockHeader()
+          .ifPresent(
+              header -> {
+                eventNode.put("proposer_index", header.getMessage().getProposerIndex().longValue());
+                eventNode.put("parent_root", header.getMessage().getParentRoot().toHexString());
+                eventNode.put("state_root", header.getMessage().getStateRoot().toHexString());
+              });
       return Optional.of(eventNode);
     }
 

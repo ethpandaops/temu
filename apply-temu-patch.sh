@@ -278,10 +278,13 @@ if [ -d "plugins/xatu" ]; then
     rm -rf plugins/xatu
 fi
 
-cp -r "$SCRIPT_DIR/plugins/xatu" plugins/
+# Copy plugin source only (exclude build artifacts to ensure clean gradle build)
+mkdir -p plugins/xatu
+cp "$SCRIPT_DIR/plugins/xatu/build.gradle" plugins/xatu/
+cp -r "$SCRIPT_DIR/plugins/xatu/src" plugins/xatu/
 
 # Download libxatu.so if not present
-XATU_SIDECAR_VERSION="v0.0.5"
+XATU_SIDECAR_VERSION="v0.0.6"
 if [ ! -f "libxatu.so" ]; then
     echo -e "${BLUE}Downloading libxatu.so (${XATU_SIDECAR_VERSION})...${NC}"
 
