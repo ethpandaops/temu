@@ -82,86 +82,11 @@ index db73ac5..d126434 100644
    testFixturesImplementation project(':infrastructure:unsigned')
  }
  
-diff --git a/networking/eth2/build.gradle b/networking/eth2/build.gradle
-index 5a1fcd6..3248a1c 100644
---- a/networking/eth2/build.gradle
-+++ b/networking/eth2/build.gradle
-@@ -17,6 +17,7 @@ dependencies {
-   implementation project(':storage:api')
-   implementation project(':services:zkchain')
-   implementation project(':infrastructure:serviceutils')
-+  implementation project(':infrastructure:version')
- 
-   implementation 'io.libp2p:jvm-libp2p'
-   implementation 'io.netty:netty-codec-http'
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
-index 1aea05e..8981117 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/AbstractGossipManager.java
-@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
- import tech.pegasys.teku.infrastructure.async.AsyncRunner;
- import tech.pegasys.teku.infrastructure.async.SafeFuture;
- import tech.pegasys.teku.infrastructure.bytes.Bytes4;
-+import tech.pegasys.teku.infrastructure.events.EventChannels;
- import tech.pegasys.teku.infrastructure.ssz.SszData;
- import tech.pegasys.teku.infrastructure.ssz.schema.SszSchema;
- import tech.pegasys.teku.infrastructure.unsigned.UInt64;
-@@ -76,7 +77,8 @@ public abstract class AbstractGossipManager<T extends SszData> implements Gossip
-                 recentChainData.getSpec(), forkInfo.getFork(), getEpochForMessage),
-             gossipType,
-             networkingConfig,
--            debugDataDumper);
-+            debugDataDumper,
-+            null); // EventChannels will be injected later
-     this.gossipEncoding = gossipEncoding;
-     this.gossipFailureLogger = gossipFailureLogger;
-     this.getSlotForMessage = getSlotForMessage;
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
-index eaa8d33..09a4403 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/BlobSidecarGossipManager.java
-@@ -188,7 +188,8 @@ public class BlobSidecarGossipManager implements GossipManager {
-             blobSidecar -> spec.computeEpochAtSlot(blobSidecar.getSlot())),
-         gossipType,
-         spec.getNetworkingConfig(),
--        debugDataDumper);
-+        debugDataDumper,
-+        null); // EventChannels not needed for blob sidecars
-   }
- 
-   private record TopicSubnetIdAwareOperationProcessor(
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
-index 9e6883b..30b6a81 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/subnets/SyncCommitteeSubnetSubscriptions.java
-@@ -89,6 +89,7 @@ public class SyncCommitteeSubnetSubscriptions extends CommitteeSubnetSubscriptio
-             message -> spec.computeEpochAtSlot(message.getSlot())),
-         schemaDefinitions.getSyncCommitteeMessageSchema(),
-         spec.getNetworkingConfig(),
--        debugDataDumper);
-+        debugDataDumper,
-+        null); // EventChannels not needed for sync committee messages
-   }
- }
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
-index 03bc1cb..396a2ca 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/DataColumnSidecarTopicHandler.java
-@@ -58,7 +58,8 @@ public class DataColumnSidecarTopicHandler {
-             message -> spec.computeEpochAtSlot(message.getSlot())),
-         dataColumnSidecarSchema,
-         spec.getNetworkingConfig(),
--        debugDataDumper);
-+        debugDataDumper,
-+        null); // EventChannels not needed for data column sidecars
-   }
- 
-   private static class TopicSubnetIdAwareOperationProcessor
 diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
-index 9c12b6f..91cbb27 100644
+index 9c12b6f..88c641e 100644
 --- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 +++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
-@@ -21,9 +21,13 @@ import java.util.concurrent.RejectedExecutionException;
+@@ -21,6 +21,9 @@ import java.util.concurrent.RejectedExecutionException;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  import org.apache.tuweni.bytes.Bytes;
@@ -171,57 +96,7 @@ index 9c12b6f..91cbb27 100644
  import tech.pegasys.teku.infrastructure.async.AsyncRunner;
  import tech.pegasys.teku.infrastructure.async.SafeFuture;
  import tech.pegasys.teku.infrastructure.bytes.Bytes4;
-+import tech.pegasys.teku.infrastructure.events.EventChannels;
- import tech.pegasys.teku.infrastructure.exceptions.ExceptionUtil;
- import tech.pegasys.teku.infrastructure.ssz.SszData;
- import tech.pegasys.teku.infrastructure.ssz.schema.SszSchema;
-@@ -63,6 +67,7 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-   // every slot of mainnet config
-   private final Throttler<Logger> loggerThrottler = new Throttler<>(LOG, UInt64.valueOf(12));
- 
-+  @SuppressWarnings("unused") // eventChannels kept for API compatibility, using EventChannelsHolder
-   public Eth2TopicHandler(
-       final RecentChainData recentChainData,
-       final AsyncRunner asyncRunner,
-@@ -73,7 +78,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-       final OperationValidator<MessageT> forkValidator,
-       final SszSchema<MessageT> messageType,
-       final NetworkingSpecConfig networkingConfig,
--      final DebugDataDumper debugDataDumper) {
-+      final DebugDataDumper debugDataDumper,
-+      final EventChannels eventChannels) {
-     this.asyncRunner = asyncRunner;
-     this.processor = processor;
-     this.gossipEncoding = gossipEncoding;
-@@ -89,6 +95,7 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-     this.topic = GossipTopics.getTopic(forkDigest, topicName, gossipEncoding);
-   }
- 
-+  @SuppressWarnings("unused") // eventChannels kept for API compatibility, using EventChannelsHolder
-   public Eth2TopicHandler(
-       final RecentChainData recentChainData,
-       final AsyncRunner asyncRunner,
-@@ -99,7 +106,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-       final OperationValidator<MessageT> forkValidator,
-       final SszSchema<MessageT> messageType,
-       final NetworkingSpecConfig networkingConfig,
--      final DebugDataDumper debugDataDumper) {
-+      final DebugDataDumper debugDataDumper,
-+      final EventChannels eventChannels) {
-     this(
-         recentChainData,
-         asyncRunner,
-@@ -110,7 +118,8 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-         forkValidator,
-         messageType,
-         networkingConfig,
--        debugDataDumper);
-+        debugDataDumper,
-+        eventChannels);
-   }
- 
-   @Override
-@@ -129,6 +138,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+@@ -129,6 +132,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
                            .process(deserialized, message.getArrivalTimestamp())
                            .thenApply(
                                internalValidation -> {
@@ -244,32 +119,6 @@ index 9c12b6f..91cbb27 100644
                                  processMessage(internalValidation, message);
                                  return GossipSubValidationUtil.fromInternalValidationResult(
                                      internalValidation);
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
-index 04efc1c..a7c5452 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/ExecutionProofTopicHandler.java
-@@ -51,6 +51,7 @@ public class ExecutionProofTopicHandler {
-             __ -> spec.computeEpochAtSlot(recentChainData.getHeadSlot())),
-         executionProofSchema,
-         recentChainData.getSpec().getNetworkingConfig(),
--        debugDataDumper);
-+        debugDataDumper,
-+        null); // EventChannels not needed for execution proofs
-   }
- }
-diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
-index 32decfb..166155a 100644
---- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
-+++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/SingleAttestationTopicHandler.java
-@@ -57,6 +57,7 @@ public class SingleAttestationTopicHandler {
-             message -> spec.computeEpochAtSlot(message.getData().getSlot())),
-         attestationSchema.castTypeToAttestationSchema(),
-         spec.getNetworkingConfig(),
--        debugDataDumper);
-+        debugDataDumper,
-+        null); // EventChannels not needed for single attestations
-   }
- }
 diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
 index 973abed..ebf3aa7 100644
 --- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
@@ -293,89 +142,6 @@ index 973abed..ebf3aa7 100644
    class DecodedMessageResult {
      private final Optional<Bytes> decodedMessage;
      private final Optional<Throwable> decodingException;
-diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
-index 7ca3341..45db611 100644
---- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
-+++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/GossipHandler.java
-@@ -13,12 +13,15 @@
- 
- package tech.pegasys.teku.networking.p2p.libp2p.gossip;
- 
-+import io.libp2p.core.PeerId;
- import io.libp2p.core.pubsub.MessageApi;
- import io.libp2p.core.pubsub.PubsubPublisherApi;
- import io.libp2p.core.pubsub.Topic;
- import io.libp2p.core.pubsub.ValidationResult;
-+import io.libp2p.pubsub.AbstractPubsubMessage;
- import io.libp2p.pubsub.PubsubMessage;
- import io.netty.buffer.Unpooled;
-+import java.lang.reflect.Method;
- import java.util.concurrent.CompletableFuture;
- import java.util.function.Function;
- import org.apache.logging.log4j.LogManager;
-@@ -40,6 +43,8 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
-   private final PubsubPublisherApi publisher;
-   private final TopicHandler handler;
-   private final Counter messageCounter;
-+  private final Counter transportPeerPresentCounter;
-+  private final Counter transportPeerMissingCounter;
- 
-   public GossipHandler(
-       final MetricsSystem metricsSystem,
-@@ -57,6 +62,24 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
-                 "Total number of gossip messages received (avoid libp2p deduplication)",
-                 "topic")
-             .labels(topic.getTopic());
-+
-+    this.transportPeerPresentCounter =
-+        metricsSystem
-+            .createLabelledCounter(
-+                TekuMetricCategory.LIBP2P,
-+                "gossip_transport_peer_present_total",
-+                "Total number of gossip messages where a transport peer was present",
-+                "topic")
-+            .labels(topic.getTopic());
-+
-+    this.transportPeerMissingCounter =
-+        metricsSystem
-+            .createLabelledCounter(
-+                TekuMetricCategory.LIBP2P,
-+                "gossip_transport_peer_missing_total",
-+                "Total number of gossip messages where a transport peer was missing",
-+                "topic")
-+            .labels(topic.getTopic());
-   }
- 
-   @Override
-@@ -74,6 +97,28 @@ public class GossipHandler implements Function<MessageApi, CompletableFuture<Val
-     LOG.trace("Received message for topic {}", topic);
- 
-     final PubsubMessage pubsubMessage = message.getOriginalMessage();
-+
-+    // Try to get transport peer from the modified jvm-libp2p using reflection
-+    try {
-+      if (pubsubMessage instanceof AbstractPubsubMessage) {
-+        Method method = pubsubMessage.getClass().getMethod("getTransportPeer");
-+        Object result = method.invoke(pubsubMessage);
-+        if (result instanceof PeerId) {
-+          transportPeerPresentCounter.inc();
-+        } else {
-+          transportPeerMissingCounter.inc();
-+        }
-+      } else {
-+        transportPeerMissingCounter.inc();
-+      }
-+    } catch (NoSuchMethodException e) {
-+      // Method not available in this version of jvm-libp2p, skip silently
-+      transportPeerMissingCounter.inc();
-+    } catch (Exception e) {
-+      LOG.debug("Could not get transport peer: {}", e.getMessage());
-+      transportPeerMissingCounter.inc();
-+    }
-+
-     if (!(pubsubMessage instanceof PreparedPubsubMessage gossipPubsubMessage)) {
-       throw new IllegalArgumentException(
-           "Don't know this PubsubMessage implementation: " + pubsubMessage.getClass());
 diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
 index 3724bb5..fbef0a0 100644
 --- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java

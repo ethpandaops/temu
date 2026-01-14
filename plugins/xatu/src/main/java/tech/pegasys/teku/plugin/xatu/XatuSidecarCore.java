@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
@@ -55,6 +56,10 @@ public class XatuSidecarCore {
 
   @SuppressWarnings("unused")
   private String networkName = "unknown";
+
+  // Transport peer tracking (moved from GossipHandler to reduce patch footprint)
+  private final AtomicLong transportPeerPresentCount = new AtomicLong(0);
+  private final AtomicLong transportPeerMissingCount = new AtomicLong(0);
 
   /**
    * Initialize the xatu sidecar with configuration from file and genesis time from Teku.
@@ -128,6 +133,13 @@ public class XatuSidecarCore {
   public void onGossipMessageAccepted(final GossipMessageAcceptedEvent event) {
     if (!initialized.get() || shutdown.get()) {
       return;
+    }
+
+    // Track transport peer presence for monitoring
+    if (event.getTransportPeerId().isPresent()) {
+      transportPeerPresentCount.incrementAndGet();
+    } else {
+      transportPeerMissingCount.incrementAndGet();
     }
 
     try {
@@ -343,6 +355,19 @@ public class XatuSidecarCore {
       XatuNativeLibrary.INSTANCE.Shutdown();
     }
 
-    LOG.info("Xatu sidecar shutdown complete");
+    LOG.info(
+        "Xatu sidecar shutdown complete. Transport peer stats: present={}, missing={}",
+        transportPeerPresentCount.get(),
+        transportPeerMissingCount.get());
+  }
+
+  /** Get the count of messages where transport peer was present. */
+  public long getTransportPeerPresentCount() {
+    return transportPeerPresentCount.get();
+  }
+
+  /** Get the count of messages where transport peer was missing. */
+  public long getTransportPeerMissingCount() {
+    return transportPeerMissingCount.get();
   }
 }
