@@ -20,9 +20,7 @@ import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
 import tech.pegasys.teku.infrastructure.events.EventChannels;
 import tech.pegasys.teku.infrastructure.unsigned.UInt64;
 
-/**
- * Xatu plugin for Teku. Subscribes to gossip message events and forwards them to xatu-sidecar.
- */
+/** Xatu plugin for Teku. Subscribes to gossip message events and forwards them to xatu-sidecar. */
 public class XatuPlugin implements GossipMessageAcceptedChannel {
   private static final Logger LOG = LogManager.getLogger();
 

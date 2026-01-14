@@ -108,6 +108,63 @@ XATU_CONFIG=../example-xatu-config.yaml ./build/install/teku/bin/teku
 java -Dxatu.config=../example-xatu-config.yaml -jar build/libs/teku.jar
 ```
 
+### Building a Docker Image
+
+To build a local Docker image with Temu patches:
+
+```bash
+# First, build the patched Teku
+./temu-build.sh -r consensys/teku -b master
+
+# Then build the Docker image
+cd teku && ./gradlew localDocker
+```
+
+This creates a `local/teku:develop-jdk21` Docker image that can be used with container orchestration tools.
+
+### Running with Kurtosis
+
+Temu can be run with [Kurtosis](https://www.kurtosis.com/) using the [ethereum-package](https://github.com/ethpandaops/ethereum-package).
+
+Create a `config.yaml`:
+
+```yaml
+extra_files:
+  xatu.yaml: |
+    log_level: info
+    processor:
+      name: temu-node
+      outputs:
+        - name: stdout
+          type: stdout
+      ethereum:
+        implementation: teku
+        genesis_time: 0
+        seconds_per_slot: 12
+        slots_per_epoch: 32
+        network:
+          name: unknown
+          id: 0
+      client:
+        name: temu
+        version: 1.0.0
+
+participants:
+  - el_type: geth
+    cl_type: teku
+    cl_image: local/teku:develop-jdk21
+    cl_extra_env_vars:
+      XATU_CONFIG: /config/xatu.yaml
+    cl_extra_mounts:
+      /config: xatu.yaml
+```
+
+Run the enclave:
+
+```bash
+kurtosis run github.com/ethpandaops/ethereum-package --args-file config.yaml
+```
+
 ### Customizing native library location
 
 ```bash
@@ -119,19 +176,54 @@ java -Dxatu.sidecar.library.path=/custom/path/libxatu.so -jar teku.jar
 Example Xatu configuration (`example-xatu-config.yaml`):
 
 ```yaml
-enabled: true
-name: "temu-node"
-outputs:
-  - name: xatu
-    type: xatu
-    config:
-      address: localhost:8080
-      tls: false
-      maxQueueSize: 500000
-      batchTimeout: 1s
-      exportTimeout: 15s
-      maxExportBatchSize: 1000
-      workers: 5
+log_level: info
+processor:
+  name: temu-node
+  outputs:
+    - name: xatu-server
+      type: xatu
+      config:
+        address: localhost:8080
+        tls: false
+        maxQueueSize: 500000
+        batchTimeout: 1s
+        exportTimeout: 15s
+        maxExportBatchSize: 1000
+        workers: 5
+  ethereum:
+    implementation: teku
+    genesis_time: 0  # Overridden by Teku at runtime
+    seconds_per_slot: 12
+    slots_per_epoch: 32
+    network:
+      name: unknown  # Can be set for identification purposes
+      id: 0
+  client:
+    name: temu
+    version: 1.0.0
+  # ntpServer: time.google.com
+```
+
+For simple stdout logging (useful for testing):
+
+```yaml
+log_level: info
+processor:
+  name: temu-node
+  outputs:
+    - name: stdout
+      type: stdout
+  ethereum:
+    implementation: teku
+    genesis_time: 0
+    seconds_per_slot: 12
+    slots_per_epoch: 32
+    network:
+      name: unknown
+      id: 0
+  client:
+    name: temu
+    version: 1.0.0
 ```
 
 ## Architecture

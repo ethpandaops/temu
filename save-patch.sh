@@ -238,6 +238,12 @@ if [ "$INTERACTIVE" = true ]; then
     fi
 fi
 
+# Step 13: Restore plugins/xatu for subsequent builds
+[ "$QUIET" = false ] && echo "-> Restoring plugins/xatu for subsequent builds..."
+mkdir -p plugins/xatu
+cp "$SCRIPT_DIR/plugins/xatu/build.gradle" plugins/xatu/
+cp -r "$SCRIPT_DIR/plugins/xatu/src" plugins/xatu/
+
 if [ "$QUIET" = false ]; then
     echo ""
     echo "* Done!"
