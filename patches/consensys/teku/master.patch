@@ -132,7 +132,7 @@ index db73ac5..d126434 100644
  }
  
 diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
-index 9c12b6f..88c641e 100644
+index 1d0d09f..d6346b1 100644
 --- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 +++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 @@ -21,6 +21,9 @@ import java.util.concurrent.RejectedExecutionException;
@@ -169,7 +169,7 @@ index 9c12b6f..88c641e 100644
                                  return GossipSubValidationUtil.fromInternalValidationResult(
                                      internalValidation);
 diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
-index 973abed..ebf3aa7 100644
+index 5a9a990..de7fcf7 100644
 --- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
 +++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
 @@ -39,6 +39,18 @@ public interface PreparedGossipMessage {
@@ -192,7 +192,7 @@ index 973abed..ebf3aa7 100644
      private final Optional<Bytes> decodedMessage;
      private final Optional<Throwable> decodingException;
 diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
-index 3724bb5..fbef0a0 100644
+index c06baf2..5ea1e84 100644
 --- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
 +++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
 @@ -15,13 +15,19 @@ package tech.pegasys.teku.networking.p2p.libp2p.gossip;
@@ -284,7 +284,7 @@ index 3724bb5..fbef0a0 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 19d9d6e..5665c7b 100644
+index c33513d..e7f08a6 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -59,6 +59,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blobs.RecentBlobSidecarsFetcher;
@@ -374,7 +374,7 @@ index ee68a3b..c8225f9 100644
    implementation project(':services:chainstorage')
    implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index bd995a4..e1e8729 100644
+index 630f84d..0228dc0 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 @@ -447,6 +447,13 @@ public class P2POptions {
