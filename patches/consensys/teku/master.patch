@@ -374,10 +374,10 @@ index ee68a3b..c8225f9 100644
    implementation project(':services:chainstorage')
    implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index 630f84d..0228dc0 100644
+index 8a0be51..c54ddf8 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-@@ -447,6 +447,13 @@ public class P2POptions {
+@@ -448,6 +448,13 @@ public class P2POptions {
        fallbackValue = "true")
    private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
  
@@ -391,7 +391,7 @@ index 630f84d..0228dc0 100644
    @Option(
        names = {"--Xexecution-proof-topics-enabled"},
        paramLabel = "<BOOLEAN>",
-@@ -671,6 +678,11 @@ public class P2POptions {
+@@ -672,6 +679,11 @@ public class P2POptions {
    }
  
    public void configure(final TekuConfiguration.Builder builder) {
