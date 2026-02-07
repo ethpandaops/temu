@@ -15,7 +15,7 @@ index 8c02018..4fa2405 100644
 +/libxatu.h
 \ No newline at end of file
 diff --git a/build.gradle b/build.gradle
-index 66c857c..2693b39 100644
+index a06e0a5..3596061 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -666,6 +666,28 @@ task localDocker {
