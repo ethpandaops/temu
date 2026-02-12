@@ -18,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedChannel;
 import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
 import tech.pegasys.teku.infrastructure.events.EventChannels;
-import tech.pegasys.teku.infrastructure.unsigned.UInt64;
 
 /** Xatu plugin for Teku. Subscribes to gossip message events and forwards them to xatu-sidecar. */
 public class XatuPlugin implements GossipMessageAcceptedChannel {
@@ -37,32 +36,34 @@ public class XatuPlugin implements GossipMessageAcceptedChannel {
   }
 
   /**
-   * Initialize the plugin with the event channels and genesis time.
+   * Initialize the plugin with event channels and runtime chain data.
    *
    * @param eventChannels the event channels to subscribe to
-   * @param genesisTime the genesis time from Teku (injected into xatu config)
+   * @param genesisTime the genesis time from Teku's chain data
+   * @param networkName the network name (e.g., "mainnet", "holesky")
+   * @param networkId the deposit network ID from the spec
+   * @param slotsPerEpoch the slots per epoch from the spec
+   * @param secondsPerSlot the seconds per slot from the spec
    */
-  public void initialize(final EventChannels eventChannels, final UInt64 genesisTime) {
-    if (!core.initialize(configPath, genesisTime)) {
+  public void initialize(
+      final EventChannels eventChannels,
+      final long genesisTime,
+      final String networkName,
+      final long networkId,
+      final int slotsPerEpoch,
+      final int secondsPerSlot) {
+    if (!core.initialize(
+        configPath, genesisTime, networkName, networkId, slotsPerEpoch, secondsPerSlot)) {
       LOG.error("Failed to initialize xatu plugin");
       return;
     }
 
     // Subscribe to gossip message events
     eventChannels.subscribe(GossipMessageAcceptedChannel.class, this);
-    LOG.info("Xatu plugin initialized with genesis_time={}", genesisTime);
+    LOG.info("Xatu plugin initialized and subscribed to gossip events");
 
     // Register shutdown hook
     Runtime.getRuntime().addShutdownHook(new Thread(core::shutdown));
-  }
-
-  /**
-   * Set the network name for event metadata.
-   *
-   * @param networkName the network name
-   */
-  public void setNetworkName(final String networkName) {
-    core.setNetworkName(networkName);
   }
 
   @Override

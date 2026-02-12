@@ -413,7 +413,7 @@ index c06baf2..5ea1e84 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 72c012f..43c6ad1 100644
+index 72c012f..93024f0 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -59,6 +59,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blobs.RecentBlobSidecarsFetcher;
@@ -434,12 +434,11 @@ index 72c012f..43c6ad1 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2356,6 +2360,43 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2356,6 +2360,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
 +  private void initializeXatuPlugin() {
-+    // Check if Xatu configuration is provided
 +    String xatuConfig = System.getProperty("xatu.config");
 +    if (xatuConfig == null) {
 +      xatuConfig = System.getenv("XATU_CONFIG");
@@ -447,26 +446,28 @@ index 72c012f..43c6ad1 100644
 +
 +    if (xatuConfig != null) {
 +      try {
-+        // Set EventChannelsHolder for gossip handlers to use
 +        EventChannelsHolder.set(eventChannels);
 +
-+        // Get genesis time from chain data
-+        UInt64 genesisTime = UInt64.ZERO;
-+        if (recentChainData != null && recentChainData.getGenesisTime() != null) {
-+          genesisTime = recentChainData.getGenesisTime();
-+        }
++        // Extract runtime data from Teku
++        var specConfig = spec.getGenesisSpecConfig();
++        long genesisTime = recentChainData.getGenesisTime().longValue();
++        String networkName = beaconConfig.eth2NetworkConfig().getEth2Network()
++            .map(n -> n.configName()).orElse("unknown");
++        long networkId = specConfig.getDepositNetworkId();
++        int slotsPerEpoch = specConfig.getSlotsPerEpoch();
++        int secondsPerSlot = specConfig.getSecondsPerSlot();
 +
-+        // Initialize Xatu plugin with config path
 +        Class<?> xatuPluginClass = Class.forName("tech.pegasys.teku.plugin.xatu.XatuPlugin");
 +        Object xatuPlugin = xatuPluginClass
 +            .getConstructor(String.class)
 +            .newInstance(xatuConfig);
 +
-+        // Call initialize with event channels and genesis time
-+        xatuPluginClass.getMethod("initialize", EventChannels.class, UInt64.class)
-+            .invoke(xatuPlugin, eventChannels, genesisTime);
++        xatuPluginClass.getMethod("initialize",
++            EventChannels.class, long.class, String.class, long.class, int.class, int.class)
++            .invoke(xatuPlugin, eventChannels, genesisTime, networkName, networkId,
++                    slotsPerEpoch, secondsPerSlot);
 +
-+        LOG.info("Xatu plugin initialized with config: {}, genesis_time: {}", xatuConfig, genesisTime);
++        LOG.info("Xatu plugin initialized with config: {}", xatuConfig);
 +      } catch (ClassNotFoundException e) {
 +        LOG.debug("Xatu plugin not available");
 +      } catch (Exception e) {

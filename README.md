@@ -71,6 +71,50 @@ java -Dxatu.config=/path/to/xatu-config.yaml -jar build/libs/teku.jar
 
 The configuration file should be based on [`example-xatu-config.yaml`](example-xatu-config.yaml).
 
+## Testing with Kurtosis
+
+Run a local multi-client Ethereum testnet to verify xatu sidecar integration end-to-end.
+
+### Prerequisites
+
+- [Kurtosis CLI](https://docs.kurtosis.com/install/) installed
+- Docker running
+- Temu Docker image built locally (see [Docker](#docker) section above)
+
+### Run
+
+```bash
+# Run the testnet (ethereum-package is fetched automatically by kurtosis)
+kurtosis run github.com/ethpandaops/ethereum-package --args-file kurtosis-config.yaml --enclave temu
+```
+
+### View xatu sidecar logs
+
+```bash
+# List services to find the teku CL service name
+kurtosis enclave inspect temu
+
+# View logs (service name is typically cl-1-teku-nethermind)
+kurtosis service logs temu cl-1-teku-nethermind
+
+# Follow logs in real-time
+kurtosis service logs temu cl-1-teku-nethermind --follow
+```
+
+### View the chain
+
+Dora explorer is included — find its URL with:
+```bash
+kurtosis enclave inspect temu
+# Look for the dora service port mapping
+```
+
+### Cleanup
+
+```bash
+kurtosis enclave rm -f temu
+```
+
 ## Scripts
 
 | Script | Purpose |
