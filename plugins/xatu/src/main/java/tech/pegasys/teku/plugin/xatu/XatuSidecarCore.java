@@ -219,7 +219,7 @@ public class XatuSidecarCore {
     String topic = event.getTopic();
     long timestampMs = event.getArrivalTimestamp().orElse(UInt64.ZERO).longValue();
     String peerId = event.getTransportPeerId().orElse("");
-    String messageId = event.getMessageId().toHexString();
+    String messageId = event.getMessageId().toUnprefixedHexString();
     int messageSize = event.getMessageSize();
 
     // Type-specific conversion - flat format matching xatu-sidecar Raw* structs
@@ -253,7 +253,7 @@ public class XatuSidecarCore {
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
-      eventNode.put("attestation_data_root", agg.getData().hashTreeRoot().toHexString());
+      eventNode.put("attestation_data_root", agg.getData().getBeaconBlockRoot().toHexString());
       eventNode.put("topic", topic);
       eventNode.put("source_root", agg.getData().getSource().getRoot().toHexString());
       eventNode.put("target_root", agg.getData().getTarget().getRoot().toHexString());
@@ -281,7 +281,7 @@ public class XatuSidecarCore {
       eventNode.put("should_process", true);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
-      eventNode.put("attestation_data_root", attestation.getData().hashTreeRoot().toHexString());
+      eventNode.put("attestation_data_root", attestation.getData().getBeaconBlockRoot().toHexString());
       eventNode.put("topic", topic);
       eventNode.put("source_root", attestation.getData().getSource().getRoot().toHexString());
       eventNode.put("target_root", attestation.getData().getTarget().getRoot().toHexString());
