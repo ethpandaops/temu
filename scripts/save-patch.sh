@@ -98,9 +98,6 @@ rm -rf plugins/xatu
 # Step 2: Restore files managed by scripts (not in patch)
 [ "$QUIET" = false ] && echo "Restoring script-managed files to upstream state..." || true
 git checkout HEAD -- .gitignore 2>/dev/null || true
-git checkout HEAD -- build.gradle 2>/dev/null || true
-git checkout HEAD -- docker/jdk21/Dockerfile 2>/dev/null || true
-git checkout HEAD -- docker/jdk25/Dockerfile 2>/dev/null || true
 
 # Step 3: Rename .yml.disabled back to .yml
 [ "$QUIET" = false ] && echo "Restoring disabled workflows..." || true
@@ -109,16 +106,13 @@ for f in .github/workflows/*.yml.disabled; do
     mv "$f" "${f%.disabled}"
 done
 
-# Step 4: Remove CI overlay files
-rm -f Dockerfile
-
-# Step 5: Remove libxatu artifacts
+# Step 4: Remove libxatu artifacts
 rm -f libxatu.so libxatu.h libxatu.dylib
 
-# Step 6: Remove any .rej or .orig files
+# Step 5: Remove any .rej or .orig files
 find . -name "*.rej" -o -name "*.orig" | xargs rm -f 2>/dev/null || true
 
-# Step 7: Check if there are any changes to save
+# Step 6: Check if there are any changes to save
 if [ -z "$(git status --porcelain)" ]; then
     if [ "$CI_MODE" = true ]; then
         [ "$QUIET" = false ] && echo "No changes to save" || true
@@ -131,7 +125,7 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 fi
 
-# Step 8: Show what will be included in the patch
+# Step 7: Show what will be included in the patch
 if [ "$QUIET" = false ]; then
     echo ""
     echo "Changes to be saved in patch:"
@@ -141,10 +135,10 @@ if [ "$QUIET" = false ]; then
     echo ""
 fi
 
-# Step 9: Create patch directory if it doesn't exist
+# Step 8: Create patch directory if it doesn't exist
 mkdir -p "$PATCH_DIR"
 
-# Step 10: Generate the patch (including new files)
+# Step 9: Generate the patch (including new files)
 [ "$QUIET" = false ] && echo "Generating patch..." || true
 
 # Add new (untracked) files with intent-to-add so git diff picks them up
@@ -157,13 +151,13 @@ git diff --no-color --no-ext-diff > "$PATCH_FILE"
 # Reset intent-to-add markers
 git reset HEAD -- . 2>/dev/null || true
 
-# Step 11: Check if patch was created successfully
+# Step 10: Check if patch was created successfully
 if [ ! -s "$PATCH_FILE" ]; then
     echo "Error: Failed to create patch or patch is empty"
     exit 1
 fi
 
-# Step 12: Show patch statistics
+# Step 11: Show patch statistics
 PATCH_LINES=$(wc -l < "$PATCH_FILE")
 PATCH_SIZE=$(du -h "$PATCH_FILE" | cut -f1)
 ADDED_LINES=$(grep -c "^+" "$PATCH_FILE" 2>/dev/null || echo 0)

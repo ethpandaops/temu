@@ -20,6 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Prepare patched source
         run: |
           ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
@@ -39,10 +48,14 @@ jobs:
             echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push amd64 image
+      - name: Build Docker image via Gradle
         run: |
           cd teku
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-amd64 .
+          ./gradlew distDocker
+
+      - name: Tag and push amd64 image
+        run: |
+          docker tag consensys/teku:develop ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-amd64
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-amd64
 
   build-arm64:
@@ -52,6 +65,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Prepare patched source
         run: |
           ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
@@ -71,10 +93,14 @@ jobs:
             echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push arm64 image
+      - name: Build Docker image via Gradle
         run: |
           cd teku
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-arm64 .
+          ./gradlew distDocker
+
+      - name: Tag and push arm64 image
+        run: |
+          docker tag consensys/teku:develop ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-arm64
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}-arm64
 
   create-manifest:
