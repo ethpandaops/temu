@@ -15,7 +15,7 @@ index 8c02018..4fa2405 100644
 +/libxatu.h
 \ No newline at end of file
 diff --git a/build.gradle b/build.gradle
-index a06e0a5..3596061 100644
+index 998423d..ca05f13 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -666,6 +666,28 @@ task localDocker {
@@ -77,7 +77,7 @@ index a06e0a5..3596061 100644
        copy {
          from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk21/Dockerfile b/docker/jdk21/Dockerfile
-index 2c12c62..1ee51f2 100644
+index 3390e35..420ed31 100644
 --- a/docker/jdk21/Dockerfile
 +++ b/docker/jdk21/Dockerfile
 @@ -32,9 +32,15 @@ WORKDIR /opt/teku
@@ -97,7 +97,7 @@ index 2c12c62..1ee51f2 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index ad30637..77fa429 100644
+index c4f3d7f..643a0e4 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
 @@ -38,9 +38,15 @@ WORKDIR /opt/teku
