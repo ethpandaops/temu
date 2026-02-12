@@ -1,3 +1,105 @@
+diff --git a/build.gradle b/build.gradle
+index 998423d..ca05f13 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -666,6 +666,28 @@ task localDocker {
+       from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
+       into(dockerBuildDir)
+     }
++    // Download and copy xatu native library
++    def xatuVersion = "v0.0.6"
++    def libxatuFile = file("${projectDir}/libxatu.so")
++    if (!libxatuFile.exists()) {
++      def platform = "linux"
++      def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++      def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++      def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++      println "Downloading xatu-sidecar from ${url}..."
++      def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++      tarFile.parentFile.mkdirs()
++      new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++      exec {
++        commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++      }
++      tarFile.delete()
++      println "Downloaded libxatu.so successfully"
++    }
++    copy {
++      from libxatuFile
++      into(dockerBuildDir)
++    }
+     exec {
+       def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
+       workingDir dockerBuildDir
+@@ -700,6 +722,28 @@ task distDocker  {
+   doLast {
+     def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
+     def commitHashTag = includeCommitHashInDockerTag ? '-' + grgit.head().getAbbreviatedId() : ''
++    // Download and copy xatu native library
++    def xatuVersion = "v0.0.6"
++    def libxatuFile = file("${projectDir}/libxatu.so")
++    if (!libxatuFile.exists()) {
++      def platform = "linux"
++      def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++      def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++      def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++      println "Downloading xatu-sidecar from ${url}..."
++      def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++      tarFile.parentFile.mkdirs()
++      new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++      exec {
++        commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++      }
++      tarFile.delete()
++      println "Downloaded libxatu.so successfully"
++    }
++    copy {
++      from libxatuFile
++      into(dockerBuildDir)
++    }
+     for (def variant in dockerJdkVariants) {
+       copy {
+         from file("${projectDir}/docker/${variant}/Dockerfile")
+diff --git a/docker/jdk21/Dockerfile b/docker/jdk21/Dockerfile
+index 3390e35..420ed31 100644
+--- a/docker/jdk21/Dockerfile
++++ b/docker/jdk21/Dockerfile
+@@ -32,9 +32,15 @@ WORKDIR /opt/teku
+ # copy application (with libraries inside)
+ COPY --chown=teku:teku teku /opt/teku/
+ 
++# Copy xatu native library
++COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
++
+ # Default to UTF-8 locale
+ ENV LANG C.UTF-8
+ 
++# Ensure xatu library is discoverable
++ENV LD_LIBRARY_PATH="/usr/lib"
++
+ ENV TEKU_REST_API_INTERFACE="0.0.0.0"
+ ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
+ ENV TEKU_METRICS_INTERFACE="0.0.0.0"
+diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
+index c4f3d7f..643a0e4 100644
+--- a/docker/jdk25/Dockerfile
++++ b/docker/jdk25/Dockerfile
+@@ -38,9 +38,15 @@ WORKDIR /opt/teku
+ # copy application (with libraries inside)
+ COPY --chown=teku:teku teku /opt/teku/
+ 
++# Copy xatu native library
++COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
++
+ # Default to UTF-8 locale
+ ENV LANG C.UTF-8
+ 
++# Ensure xatu library is discoverable
++ENV LD_LIBRARY_PATH="/usr/lib"
++
+ ENV TEKU_REST_API_INTERFACE="0.0.0.0"
+ ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
+ ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/ethereum/events/build.gradle b/ethereum/events/build.gradle
 index db73ac5..d126434 100644
 --- a/ethereum/events/build.gradle

@@ -138,15 +138,6 @@ cp "$REPO_ROOT/plugins/xatu/build.gradle" plugins/xatu/
 cp -r "$REPO_ROOT/plugins/xatu/src" plugins/xatu/
 echo -e "${GREEN}  Copied plugins/xatu/${NC}"
 
-# Copy CI files
-echo ""
-echo -e "${BLUE}=== Copying CI files ===${NC}"
-
-if [ -f "$REPO_ROOT/ci/Dockerfile.ethpandaops" ]; then
-    cp "$REPO_ROOT/ci/Dockerfile.ethpandaops" Dockerfile
-    echo -e "${GREEN}  Copied Dockerfile.ethpandaops -> Dockerfile${NC}"
-fi
-
 # Download libxatu.so if not present
 echo ""
 echo -e "${BLUE}=== Downloading libxatu ===${NC}"
