@@ -1,0 +1,32 @@
+extra_files:
+  xatu-config.yaml: |
+    enabled: true
+    name: "temu-node"
+
+    outputs:
+    - name: log
+      type: stdout
+
+participants:
+  - el_type: nethermind
+    cl_type: teku
+    cl_image: "consensys/teku:develop"
+    cl_extra_env_vars:
+      XATU_CONFIG: "/etc/temu/xatu-config.yaml"
+    cl_extra_mounts:
+      "/etc/temu": "xatu-config.yaml"
+    count: 1
+  - el_type: nethermind
+    cl_type: lighthouse
+    count: 1
+
+network_params:
+  electra_fork_epoch: 1
+  fulu_fork_epoch: 2
+  min_validator_withdrawability_delay: 1
+  shard_committee_period: 1
+  churn_limit_quotient: 16
+  genesis_delay: 60
+
+additional_services:
+  - dora

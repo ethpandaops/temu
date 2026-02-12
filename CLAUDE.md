@@ -23,3 +23,14 @@ scripts/         - Build, apply, save, and validate scripts
 2. `scripts/temu-build.sh` orchestrates clone + apply + build (supports `--skip-build` for Docker CI)
 3. `scripts/save-patch.sh` strips plugin/build artifacts and generates a clean patch
 4. Docker images are built using Teku's built-in `./gradlew distDocker` (produces `consensys/teku:develop`), then tagged and pushed
+
+## Testing with Kurtosis
+
+For end-to-end testing with a local multi-client testnet:
+
+1. Build Docker image: `cd teku && ./gradlew distDocker` (produces `consensys/teku:develop`)
+2. Run: `kurtosis run github.com/ethpandaops/ethereum-package --args-file kurtosis-config.yaml --enclave temu`
+3. View logs: `kurtosis service logs temu cl-1-teku-nethermind --follow`
+4. Cleanup: `kurtosis enclave rm -f temu`
+
+The `kurtosis-config.yaml` configures a 2-node testnet (temu + lighthouse) with nethermind EL, fast fork schedule, and dora explorer. The xatu config is inlined via `extra_files` so events are visible in `kurtosis service logs`.

@@ -14,12 +14,13 @@
 package tech.pegasys.teku.plugin.xatu;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -33,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
 import tech.pegasys.teku.infrastructure.ssz.SszData;
 import tech.pegasys.teku.infrastructure.unsigned.UInt64;
+import tech.pegasys.teku.infrastructure.version.VersionProvider;
 import tech.pegasys.teku.spec.datastructures.blobs.DataColumnSidecar;
 import tech.pegasys.teku.spec.datastructures.blobs.versions.deneb.BlobSidecar;
 import tech.pegasys.teku.spec.datastructures.blocks.SignedBeaconBlock;
@@ -52,36 +54,113 @@ public class XatuSidecarCore {
   private final AtomicBoolean initialized = new AtomicBoolean(false);
   private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-  @SuppressWarnings("unused")
-  private String networkName = "unknown";
-
   // Transport peer tracking (moved from GossipHandler to reduce patch footprint)
   private final AtomicLong transportPeerPresentCount = new AtomicLong(0);
   private final AtomicLong transportPeerMissingCount = new AtomicLong(0);
 
   /**
-   * Initialize the xatu sidecar with configuration from file and genesis time from Teku.
+   * Initialize the xatu sidecar by building a full runtime config from user config and chain data.
    *
-   * @param configPath path to YAML/JSON configuration file
-   * @param genesisTime the genesis time from Teku's chain data (overrides config value)
+   * <p>Parses the user config YAML, enriches it with runtime data (genesis time, network info, spec
+   * constants, client version), and passes the full config to the native library.
+   *
+   * @param configPath path to user YAML configuration file
+   * @param genesisTime the genesis time from Teku's chain data
+   * @param networkName the network name from Teku (e.g., "mainnet", "holesky")
+   * @param networkId the deposit network ID from the spec
+   * @param slotsPerEpoch the slots per epoch from the spec
+   * @param secondsPerSlot the seconds per slot from the spec
    * @return true if initialization succeeded
    */
-  public boolean initialize(final String configPath, final UInt64 genesisTime) {
+  public boolean initialize(
+      final String configPath,
+      final long genesisTime,
+      final String networkName,
+      final long networkId,
+      final int slotsPerEpoch,
+      final int secondsPerSlot) {
     if (initialized.getAndSet(true)) {
       LOG.warn("Xatu sidecar already initialized");
       return true;
     }
 
     try {
-      String configContent = Files.readString(Paths.get(configPath));
+      // Parse user config
+      YAMLMapper yamlMapper = new YAMLMapper();
+      JsonNode userConfig = yamlMapper.readTree(new File(configPath));
 
-      // Always inject Teku's genesis time (overrides config value)
-      if (genesisTime != null && !genesisTime.isZero()) {
-        configContent = injectGenesisTime(configContent, genesisTime.longValue());
-        LOG.info("Injected genesis_time={} into xatu config", genesisTime);
+      // Check enabled field — if false or missing, skip init
+      JsonNode enabledNode = userConfig.get("enabled");
+      if (enabledNode == null || !enabledNode.asBoolean(false)) {
+        LOG.info("Xatu sidecar disabled in config");
+        initialized.set(false);
+        return false;
       }
 
-      byte[] configBytes = (configContent + "\0").getBytes(StandardCharsets.UTF_8);
+      // Build full runtime config matching xatu-sidecar format
+      ObjectNode fullConfig = yamlMapper.createObjectNode();
+
+      // Log level from env or default
+      String logLevel = System.getenv("XATU_LOG_LEVEL");
+      fullConfig.put("log_level", logLevel != null ? logLevel : "info");
+
+      // Processor section
+      ObjectNode processor = fullConfig.putObject("processor");
+
+      // Name from user config or default
+      JsonNode nameNode = userConfig.get("name");
+      processor.put("name", nameNode != null ? nameNode.asText() : "teku");
+
+      // Outputs from user config
+      JsonNode outputsNode = userConfig.get("outputs");
+      if (outputsNode != null) {
+        processor.set("outputs", outputsNode);
+      }
+
+      // Ethereum section
+      ObjectNode ethereum = processor.putObject("ethereum");
+      ethereum.put("implementation", "teku");
+      ethereum.put("genesis_time", genesisTime);
+      ethereum.put("seconds_per_slot", secondsPerSlot);
+      ethereum.put("slots_per_epoch", slotsPerEpoch);
+
+      // Network — use override from user config if present
+      ObjectNode network = ethereum.putObject("network");
+      String resolvedNetworkName = networkName;
+      JsonNode ethNode = userConfig.get("ethereum");
+      if (ethNode != null) {
+        JsonNode overrideNode = ethNode.get("overrideNetworkName");
+        if (overrideNode != null && !overrideNode.asText().isEmpty()) {
+          resolvedNetworkName = overrideNode.asText();
+        }
+      }
+      network.put("name", resolvedNetworkName);
+      network.put("id", networkId);
+
+      // Client section
+      ObjectNode client = processor.putObject("client");
+      client.put("name", "teku");
+      client.put("version", VersionProvider.IMPLEMENTATION_VERSION);
+
+      // Optional ntpServer from user config
+      JsonNode ntpNode = userConfig.get("ntpServer");
+      if (ntpNode != null) {
+        processor.put("ntpServer", ntpNode.asText());
+      }
+
+      // Serialize to YAML and pass to native library
+      String configYaml = yamlMapper.writeValueAsString(fullConfig);
+      byte[] configBytes = (configYaml + "\0").getBytes(StandardCharsets.UTF_8);
+
+      LOG.info(
+          "Initializing xatu sidecar: network={}, genesis_time={}, "
+              + "slots_per_epoch={}, seconds_per_slot={}, network_id={}, version={}",
+          resolvedNetworkName,
+          genesisTime,
+          slotsPerEpoch,
+          secondsPerSlot,
+          networkId,
+          VersionProvider.IMPLEMENTATION_VERSION);
 
       int result = XatuNativeLibrary.INSTANCE.Init(configBytes);
       if (result != 0) {
@@ -96,30 +175,13 @@ public class XatuSidecarCore {
           scheduler.scheduleAtFixedRate(
               this::flushBatch, FLUSH_INTERVAL_MS, FLUSH_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
-      LOG.info("Xatu sidecar initialized successfully with config: {}", configPath);
+      LOG.info("Xatu sidecar initialized successfully");
       return true;
     } catch (Exception e) {
       LOG.error("Failed to initialize xatu sidecar", e);
       initialized.set(false);
       return false;
     }
-  }
-
-  /** Inject genesis time into YAML config content, overriding the existing value. */
-  private String injectGenesisTime(final String yamlContent, final long genesisTime) {
-    // Replace existing genesis_time value in the YAML
-    String pattern = "(genesis_time:\\s*)\\d+";
-    String replacement = "$1" + genesisTime;
-    return yamlContent.replaceAll(pattern, replacement);
-  }
-
-  /**
-   * Set the network name for event metadata.
-   *
-   * @param networkName the network name (e.g., "mainnet", "holesky")
-   */
-  public void setNetworkName(final String networkName) {
-    this.networkName = networkName;
   }
 
   /**
