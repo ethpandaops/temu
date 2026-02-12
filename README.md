@@ -1,229 +1,168 @@
 # Temu
 
-Automated patch management and build system for integrating Xatu Sidecar observability into Teku.
+Patch-based overlay for integrating [Xatu Sidecar](https://github.com/ethpandaops/xatu-sidecar) observability into [Teku](https://github.com/consensys/teku).
 
 ## Overview
 
-Temu is a patch management system that integrates [Xatu Sidecar](https://github.com/ethpandaops/xatu-sidecar) observability into the [Teku](https://github.com/consensys/teku) Ethereum consensus client. It maintains patches that inject the Xatu plugin module into Teku builds, enabling enhanced network monitoring and metrics collection for the [Xatu](https://github.com/ethpandaops/xatu) data collection pipeline.
+Temu uses a **patch + overlay** approach instead of maintaining a full fork. The repo stores only custom code and small patches; upstream Teku is cloned fresh each build.
 
-### Key Features
-
-- **Xatu Sidecar Integration**: Seamlessly adds Xatu Sidecar observability capabilities to Teku
-- **Plugin-based Architecture**: Clean separation using Teku's plugin system
-- **JNA-based FFI**: Java Native Access for efficient native library calls
-- **Patch Management**: Maintains patches for different Teku versions (branches, tags, commits)
-- **Automated Updates**: CI/CD workflows to keep patches current with upstream changes
-
-## Directory Structure
+### Repository Structure
 
 ```
 temu/
-├── .github/workflows/         # GitHub Actions workflows
-│   ├── check-patches.yml      # Automated patch checking and updating
-│   ├── add-patch.yml          # Manual patch addition workflow
-│   └── list-patches.yml       # List all available patches
-├── plugins/                   # Plugin modules to be integrated
-│   └── xatu/                  # Xatu plugin for Teku integration
-│       ├── src/main/java/     # Java source files
-│       └── build.gradle       # Gradle build configuration
-├── patches/                   # Patch files organized by org/repo/ref
-│   └── consensys/
-│       └── teku/
-│           └── master.patch   # Default patch for Teku
-├── temu-build.sh              # Main build script
-├── apply-temu-patch.sh        # Helper script to apply patches
-├── save-patch.sh              # Script to generate patches from changes
-└── example-xatu-config.yaml   # Xatu configuration file
+├── plugins/                      # Custom code (copied into upstream clone)
+│   └── xatu/                     # Xatu Sidecar plugin for Teku integration
+├── patches/
+│   └── consensys/teku/
+│       └── master.patch          # Base patch: gossip hooks, xatu init, CLI flag
+├── ci/
+│   └── disable-upstream-workflows.sh
+├── .github/workflows/
+│   ├── check-patches.yml         # Daily: verify patches apply + build
+│   ├── docker.yml                # On push/release: build + push Docker image
+│   └── validate-patches.yml      # On PR: validate patch file structure
+├── scripts/
+│   ├── temu-build.sh             # Full orchestrator: clone -> patch -> build
+│   ├── apply-temu-patch.sh       # Apply patches + plugin overlay + deps
+│   ├── save-patch.sh             # Regenerate patches from modified clone
+│   └── validate-patch.sh         # Patch file structural validation
+├── example-xatu-config.yaml      # Xatu configuration template
+└── .gitignore                    # Ignore teku/ working directory
 ```
 
-## Scripts
+## Quick Start
 
-### temu-build.sh
-
-Main build script that handles the full workflow: clone, patch, build, and update patches.
+### Build
 
 ```bash
-# Usage
-./temu-build.sh -r <org/repo> -b <branch/tag/commit> [--ci]
+# Full build: clone upstream -> apply patches -> build binary
+./scripts/temu-build.sh -r consensys/teku -b master
 
-# Examples
-./temu-build.sh -r consensys/teku -b master
-./temu-build.sh -r consensys/teku -b 24.10.0
-./temu-build.sh -r consensys/teku -b a1b2c3d
-
-# CI mode (non-interactive, auto-approves changes)
-./temu-build.sh -r consensys/teku -b master --ci
+# The binary will be at teku/build/install/teku/bin/teku
 ```
 
-### apply-temu-patch.sh
-
-Applies the Temu patch (plugins/xatu module + patch file) to a Teku repository.
+### Docker
 
 ```bash
-# Usage
-./apply-temu-patch.sh <org/repo> <branch> [target_dir]
+# Prepare patched source (skip local build, let Docker handle it)
+./scripts/temu-build.sh -r consensys/teku -b master --skip-build
 
-# Examples
-./apply-temu-patch.sh consensys/teku master
-./apply-temu-patch.sh consensys/teku master /path/to/teku
+# Build Docker image using Teku's Gradle Docker task
+cd teku && ./gradlew distDocker
+
+# Tag for your registry
+docker tag consensys/teku:develop ethpandaops/temu:latest
 ```
 
-### save-patch.sh
-
-Generates a clean patch from modifications made to a Teku repository.
-
-```bash
-# Usage
-./save-patch.sh [-r REPO] [-b BRANCH] [TARGET_DIR]
-
-# Examples
-./save-patch.sh                                    # Uses defaults
-./save-patch.sh -r consensys/teku -b master teku
-./save-patch.sh --ci teku                          # CI mode
-```
-
-## Usage
-
-### Building a patched Teku
-
-```bash
-# Clone and build with default settings (consensys/teku master)
-./temu-build.sh -r consensys/teku -b master
-
-# The built binary will be at teku/build/install/teku/bin/teku
-```
-
-### Running Teku with Xatu
+### Run
 
 ```bash
 cd teku
 
 # Option 1: CLI flag
-./build/install/teku/bin/teku --xatu-config ../example-xatu-config.yaml
+./build/install/teku/bin/teku --xatu-config /path/to/xatu-config.yaml
 
 # Option 2: Environment variable
-XATU_CONFIG=../example-xatu-config.yaml ./build/install/teku/bin/teku
+XATU_CONFIG=/path/to/xatu-config.yaml ./build/install/teku/bin/teku
 
 # Option 3: System property
-java -Dxatu.config=../example-xatu-config.yaml -jar build/libs/teku.jar
+java -Dxatu.config=/path/to/xatu-config.yaml -jar build/libs/teku.jar
 ```
 
-### Building a Docker Image
+The configuration file should be based on [`example-xatu-config.yaml`](example-xatu-config.yaml).
 
-To build a local Docker image with Temu patches:
+## Scripts
+
+| Script | Purpose |
+|---|---|
+| `temu-build.sh` | Full orchestrator: clone upstream, apply patches + plugin overlay, build |
+| `apply-temu-patch.sh` | Apply patches to an existing teku clone + copy plugin + deps |
+| `save-patch.sh` | Regenerate patches from a modified teku clone |
+| `validate-patch.sh` | Validate patch file structure (hunk counts, etc.) |
+| `disable-upstream-workflows.sh` | Rename upstream CI workflows to `.disabled` |
+
+### temu-build.sh
 
 ```bash
-# First, build the patched Teku
-./temu-build.sh -r consensys/teku -b master
-
-# Then build the Docker image
-cd teku && ./gradlew localDocker
+./scripts/temu-build.sh -r <org/repo> -b <branch> [-c <commit>] [--ci] [--skip-build]
 ```
 
-This creates a `local/teku:develop-jdk21` Docker image that can be used with container orchestration tools.
+**Options:**
+- `-r, --repo`: Repository in format `org/repo`
+- `-b, --branch`: Branch name, tag, or commit hash
+- `-c, --commit`: Pin to specific upstream commit SHA
+- `--ci`: CI mode (non-interactive, auto-clean, auto-update patches)
+- `--skip-build`: Skip `./gradlew installDist`, exit after applying patches (for Docker CI)
 
-### Running with Kurtosis
+## How It Works
 
-Temu can be run with [Kurtosis](https://www.kurtosis.com/) using the [ethereum-package](https://github.com/ethpandaops/ethereum-package).
+### Custom Code as Overlay
 
-Create a `config.yaml`:
+`plugins/xatu/` is the Xatu Sidecar plugin module, **copied** into the upstream clone at build time. It is never part of the patch.
 
-```yaml
-extra_files:
-  xatu.yaml: |
-    log_level: info
-    processor:
-      name: temu-node
-      outputs:
-        - name: stdout
-          type: stdout
-      ethereum:
-        implementation: teku
-        genesis_time: 0
-        seconds_per_slot: 12
-        slots_per_epoch: 32
-        network:
-          name: unknown
-          id: 0
-      client:
-        name: temu
-        version: 1.0.0
+### CI Workflow Disabling
 
-participants:
-  - el_type: geth
-    cl_type: teku
-    cl_image: local/teku:develop-jdk21
-    cl_extra_env_vars:
-      XATU_CONFIG: /config/xatu.yaml
-    cl_extra_mounts:
-      /config: xatu.yaml
-```
+Instead of patching workflow renames, a simple script renames all non-temu workflows to `.disabled`.
 
-Run the enclave:
+### Docker via Gradle
+
+The Docker image is built using Teku's own `./gradlew distDocker` task. The patch modifies the upstream Dockerfiles to include libxatu.so in the image. No custom Dockerfile is needed.
+
+### Patches
+
+The actual patch surface is minimal (Java source only):
+- **`master.patch`**: Adds EventChannels for gossip message notifications, xatu plugin initialization hooks, `--xatu-config` CLI flag, transport peer ID support, build dependencies, and Docker image libxatu.so integration
+
+## Development
+
+### Adding a new feature
+
+#### New files (overlay)
+
+Self-contained new code goes in `plugins/xatu/`. These files are copied verbatim into the upstream clone at build time.
 
 ```bash
-kurtosis run github.com/ethpandaops/ethereum-package --args-file config.yaml
+vim plugins/xatu/src/main/java/tech/pegasys/teku/plugin/xatu/NewFeature.java
+git add plugins/
+git commit -m "feat: add new feature"
 ```
 
-### Customizing native library location
+#### Modifying upstream files (patch)
+
+If your feature requires changing existing upstream Java source:
 
 ```bash
-java -Dxatu.sidecar.library.path=/custom/path/libxatu.so -jar teku.jar
+# 1. Build to get the working upstream clone
+./scripts/temu-build.sh -r consensys/teku -b master
+
+# 2. Edit upstream files in the clone
+vim teku/networking/eth2/src/main/java/.../Eth2TopicHandler.java
+
+# 3. Regenerate the patch
+./scripts/save-patch.sh -r consensys/teku -b master teku
+
+# 4. Commit the updated patch
+git add patches/
+git commit -m "feat: add new-feature wiring to base patch"
 ```
 
-## Configuration
+### Fixing a patch conflict
 
-Example Xatu configuration (`example-xatu-config.yaml`):
+When upstream changes the same lines our patches touch, `apply-temu-patch.sh` will fail. To fix:
 
-```yaml
-log_level: info
-processor:
-  name: temu-node
-  outputs:
-    - name: xatu-server
-      type: xatu
-      config:
-        address: localhost:8080
-        tls: false
-        maxQueueSize: 500000
-        batchTimeout: 1s
-        exportTimeout: 15s
-        maxExportBatchSize: 1000
-        workers: 5
-  ethereum:
-    implementation: teku
-    genesis_time: 0  # Overridden by Teku at runtime
-    seconds_per_slot: 12
-    slots_per_epoch: 32
-    network:
-      name: unknown  # Can be set for identification purposes
-      id: 0
-  client:
-    name: temu
-    version: 1.0.0
-  # ntpServer: time.google.com
-```
+```bash
+# 1. Run the build -- it will show exactly which hunks failed
+./scripts/temu-build.sh -r consensys/teku -b master
 
-For simple stdout logging (useful for testing):
+# 2. Fix the conflicts in the upstream clone
+vim teku/networking/eth2/src/main/java/.../Eth2TopicHandler.java
 
-```yaml
-log_level: info
-processor:
-  name: temu-node
-  outputs:
-    - name: stdout
-      type: stdout
-  ethereum:
-    implementation: teku
-    genesis_time: 0
-    seconds_per_slot: 12
-    slots_per_epoch: 32
-    network:
-      name: unknown
-      id: 0
-  client:
-    name: temu
-    version: 1.0.0
+# 3. Regenerate the patch
+./scripts/save-patch.sh -r consensys/teku -b master teku
+
+# 4. Commit the updated patch
+git add patches/
+git commit -m "fix: update patches for upstream changes"
 ```
 
 ## Architecture
@@ -243,13 +182,18 @@ Temu uses a plugin-based architecture to integrate Xatu with Teku:
    - Provides efficient event processing
    - Handles network delivery to Xatu server
 
-## Contributing
+## CI
 
-1. Make changes to the Teku source in the `teku/` directory
-2. Run `./save-patch.sh` to generate an updated patch
-3. Test with `./temu-build.sh -r consensys/teku -b master`
-4. Submit a PR with the updated patch file
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `check-patches.yml` | Daily (cron) | Clones upstream, applies patches, builds. Auto-commits if patches needed updating |
+| `docker.yml` | Push to master / release | Builds + pushes multi-arch Docker image to `ethpandaops/temu:<tag>` |
+| `validate-patches.yml` | PR | Validates patch file structure (hunk counts, etc.) |
 
-## License
+## Requirements
 
-MIT License - see LICENSE file for details.
+- Java 21+ (Eclipse Temurin recommended)
+- Gradle (wrapper included in Teku)
+- Git
+- Bash
+- GitHub CLI (`gh`) for release creation in CI
