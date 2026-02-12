@@ -84,6 +84,10 @@ Run a local multi-client Ethereum testnet to verify xatu sidecar integration end
 ### Run
 
 ```bash
+# Build the Docker image first (if not already built)
+./scripts/temu-build.sh -r consensys/teku -b master --skip-build
+cd teku && ./gradlew distDocker && cd ..
+
 # Run the testnet (ethereum-package is fetched automatically by kurtosis)
 kurtosis run github.com/ethpandaops/ethereum-package --args-file kurtosis-config.yaml --enclave temu
 ```

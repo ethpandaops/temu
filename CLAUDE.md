@@ -28,7 +28,7 @@ scripts/         - Build, apply, save, and validate scripts
 
 For end-to-end testing with a local multi-client testnet:
 
-1. Build Docker image: `cd teku && ./gradlew distDocker` (produces `consensys/teku:develop`)
+1. Build Docker image: `./scripts/temu-build.sh -r consensys/teku -b master --skip-build && cd teku && ./gradlew distDocker && cd ..` (produces `consensys/teku:develop`)
 2. Run: `kurtosis run github.com/ethpandaops/ethereum-package --args-file kurtosis-config.yaml --enclave temu`
 3. View logs: `kurtosis service logs temu cl-1-teku-nethermind --follow`
 4. Cleanup: `kurtosis enclave rm -f temu`
