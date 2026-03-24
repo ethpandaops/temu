@@ -1,67 +1,67 @@
 diff --git a/build.gradle b/build.gradle
-index 998423d..ca05f13 100644
+index ba49089..9de8cff 100644
 --- a/build.gradle
 +++ b/build.gradle
-@@ -666,6 +666,28 @@ task localDocker {
-       from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
-       into(dockerBuildDir)
-     }
-+    // Download and copy xatu native library
-+    def xatuVersion = "v0.0.6"
-+    def libxatuFile = file("${projectDir}/libxatu.so")
-+    if (!libxatuFile.exists()) {
-+      def platform = "linux"
-+      def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
-+      def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
-+      def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
-+      println "Downloading xatu-sidecar from ${url}..."
-+      def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
-+      tarFile.parentFile.mkdirs()
-+      new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
-+      exec {
-+        commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
-+      }
-+      tarFile.delete()
-+      println "Downloaded libxatu.so successfully"
-+    }
-+    copy {
-+      from libxatuFile
-+      into(dockerBuildDir)
-+    }
-     exec {
-       def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
-       workingDir dockerBuildDir
-@@ -700,6 +722,28 @@ task distDocker  {
-   doLast {
-     def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
-     def commitHashTag = includeCommitHashInDockerTag ? '-' + grgit.head().getAbbreviatedId() : ''
-+    // Download and copy xatu native library
-+    def xatuVersion = "v0.0.6"
-+    def libxatuFile = file("${projectDir}/libxatu.so")
-+    if (!libxatuFile.exists()) {
-+      def platform = "linux"
-+      def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
-+      def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
-+      def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
-+      println "Downloading xatu-sidecar from ${url}..."
-+      def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
-+      tarFile.parentFile.mkdirs()
-+      new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
-+      exec {
-+        commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
-+      }
-+      tarFile.delete()
-+      println "Downloaded libxatu.so successfully"
-+    }
-+    copy {
-+      from libxatuFile
-+      into(dockerBuildDir)
-+    }
-     for (def variant in dockerJdkVariants) {
-       copy {
-         from file("${projectDir}/docker/${variant}/Dockerfile")
+@@ -720,6 +720,28 @@ tasks.register('localDocker') {
+ 			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
+ 			into(dockerBuildDir)
+ 		}
++		// Download and copy xatu native library
++		def xatuVersion = "v0.0.6"
++		def libxatuFile = file("${projectDir}/libxatu.so")
++		if (!libxatuFile.exists()) {
++			def platform = "linux"
++			def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++			def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++			def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++			println "Downloading xatu-sidecar from ${url}..."
++			def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++			tarFile.parentFile.mkdirs()
++			new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++			system.executor.exec {
++				commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++			}
++			tarFile.delete()
++			println "Downloaded libxatu.so successfully"
++		}
++		system.fs.copy {
++			from libxatuFile
++			into(dockerBuildDir)
++		}
+ 		system.executor.exec {
+ 			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
+ 			workingDir dockerBuildDir
+@@ -754,6 +776,28 @@ tasks.register('distDocker')  {
+ 	doLast {
+ 		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
+ 		def commitHashTag = includeCommitHashInDockerTag ? '-' + grgit.head().getAbbreviatedId() : ''
++		// Download and copy xatu native library
++		def xatuVersion = "v0.0.6"
++		def libxatuFile = file("${projectDir}/libxatu.so")
++		if (!libxatuFile.exists()) {
++			def platform = "linux"
++			def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++			def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++			def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++			println "Downloading xatu-sidecar from ${url}..."
++			def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++			tarFile.parentFile.mkdirs()
++			new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++			system.executor.exec {
++				commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++			}
++			tarFile.delete()
++			println "Downloaded libxatu.so successfully"
++		}
++		system.fs.copy {
++			from libxatuFile
++			into(dockerBuildDir)
++		}
+ 		for (def variant in dockerJdkVariants) {
+ 			system.fs.copy {
+ 				from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk21/Dockerfile b/docker/jdk21/Dockerfile
-index 3390e35..420ed31 100644
+index 364a7be..82e5999 100644
 --- a/docker/jdk21/Dockerfile
 +++ b/docker/jdk21/Dockerfile
 @@ -32,9 +32,15 @@ WORKDIR /opt/teku
@@ -72,7 +72,7 @@ index 3390e35..420ed31 100644
 +COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
 +
  # Default to UTF-8 locale
- ENV LANG C.UTF-8
+ ENV LANG=C.UTF-8
  
 +# Ensure xatu library is discoverable
 +ENV LD_LIBRARY_PATH="/usr/lib"
@@ -81,7 +81,7 @@ index 3390e35..420ed31 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index c4f3d7f..643a0e4 100644
+index 6ba136d..1509e21 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
 @@ -38,9 +38,15 @@ WORKDIR /opt/teku
@@ -92,7 +92,7 @@ index c4f3d7f..643a0e4 100644
 +COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
 +
  # Default to UTF-8 locale
- ENV LANG C.UTF-8
+ ENV LANG=C.UTF-8
  
 +# Ensure xatu library is discoverable
 +ENV LD_LIBRARY_PATH="/usr/lib"
@@ -101,18 +101,18 @@ index c4f3d7f..643a0e4 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/ethereum/events/build.gradle b/ethereum/events/build.gradle
-index db73ac5..d126434 100644
+index 6611950..1017271 100644
 --- a/ethereum/events/build.gradle
 +++ b/ethereum/events/build.gradle
 @@ -1,5 +1,10 @@
  dependencies {
-   api project(':infrastructure:events')
-+  api project(':infrastructure:ssz')
-+  api project(':infrastructure:unsigned')
+ 	api project(':infrastructure:events')
++	api project(':infrastructure:ssz')
++	api project(':infrastructure:unsigned')
 +
-+  implementation 'io.consensys.tuweni:tuweni-bytes'
++	implementation 'io.consensys.tuweni:tuweni-bytes'
 +
-   testFixturesImplementation project(':infrastructure:unsigned')
+ 	testFixturesImplementation project(':infrastructure:unsigned')
  }
  
 diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java
@@ -413,18 +413,18 @@ index c06baf2..5ea1e84 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 1bf4cd6..03e7e24 100644
+index a43b047..8babccc 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-@@ -59,6 +59,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blobs.RecentBlobSidecarsFetcher;
- import tech.pegasys.teku.beacon.sync.gossip.blocks.RecentBlocksFetcher;
+@@ -60,6 +60,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blocks.RecentBlocksFetcher;
+ import tech.pegasys.teku.beacon.sync.gossip.executionpayloads.RecentExecutionPayloadsFetcher;
  import tech.pegasys.teku.beaconrestapi.BeaconRestApi;
  import tech.pegasys.teku.beaconrestapi.JsonTypeDefinitionBeaconRestApi;
 +import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -1908,6 +1909,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -1937,6 +1938,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -434,7 +434,7 @@ index 1bf4cd6..03e7e24 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2408,6 +2412,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2441,6 +2445,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
@@ -480,7 +480,7 @@ index 1bf4cd6..03e7e24 100644
      UInt64 genesisTime = recentChainData.getGenesisTime();
      UInt64 currentTime = timeProvider.getTimeInSeconds();
 diff --git a/settings.gradle b/settings.gradle
-index 06e1fc9..d0b85ec 100644
+index 46f1a32..3ab2e1f 100644
 --- a/settings.gradle
 +++ b/settings.gradle
 @@ -47,6 +47,7 @@ include 'infrastructure:yaml'
@@ -492,19 +492,19 @@ index 06e1fc9..d0b85ec 100644
  include 'services:executionlayer'
  include 'services:powchain'
 diff --git a/teku/build.gradle b/teku/build.gradle
-index ee68a3b..c8225f9 100644
+index eea8f12..17a6cef 100644
 --- a/teku/build.gradle
 +++ b/teku/build.gradle
 @@ -29,6 +29,7 @@ dependencies {
-   implementation project(':networking:eth2')
-   implementation project(':networking:nat')
-   implementation project(':services:beaconchain')
-+  implementation project(':plugins:xatu')
-   implementation project(':services:bootnode')
-   implementation project(':services:chainstorage')
-   implementation project(':services:executionlayer')
+ 	implementation project(':networking:eth2')
+ 	implementation project(':networking:nat')
+ 	implementation project(':services:beaconchain')
++	implementation project(':plugins:xatu')
+ 	implementation project(':services:bootnode')
+ 	implementation project(':services:chainstorage')
+ 	implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index 8a0be51..c54ddf8 100644
+index 1accd99..9c772f3 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 @@ -448,6 +448,13 @@ public class P2POptions {
@@ -521,7 +521,7 @@ index 8a0be51..c54ddf8 100644
    @Option(
        names = {"--Xexecution-proof-topics-enabled"},
        paramLabel = "<BOOLEAN>",
-@@ -672,6 +679,11 @@ public class P2POptions {
+@@ -685,6 +692,11 @@ public class P2POptions {
    }
  
    public void configure(final TekuConfiguration.Builder builder) {
