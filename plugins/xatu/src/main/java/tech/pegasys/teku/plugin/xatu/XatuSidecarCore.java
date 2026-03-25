@@ -326,7 +326,8 @@ public class XatuSidecarCore {
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
       eventNode.put("column_index", dataColumnSidecar.getIndex().longValue());
-      eventNode.put("kzg_commitments_count", dataColumnSidecar.getKzgCommitments().size());
+      eventNode.put("kzg_commitments_count",
+          dataColumnSidecar.getMaybeKzgCommitments().map(c -> c.size()).orElse(0));
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
