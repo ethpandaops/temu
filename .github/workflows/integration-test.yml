@@ -1,0 +1,53 @@
+name: Integration Test
+
+on:
+  pull_request:
+    paths:
+      - 'patches/**'
+      - 'plugins/**'
+      - 'scripts/**'
+      - 'kurtosis-config.yaml'
+  push:
+    branches:
+      - master
+    paths:
+      - 'patches/**'
+      - 'plugins/**'
+      - 'scripts/**'
+      - 'kurtosis-config.yaml'
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Install Kurtosis
+        run: |
+          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt-get update
+          sudo apt-get install -y kurtosis-cli
+
+      - name: Prepare patched source
+        run: |
+          ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
+
+      - name: Build Docker image
+        run: |
+          cd teku
+          ./gradlew distDocker
+
+      - name: Run integration test
+        run: |
+          ./scripts/integration-test.sh
