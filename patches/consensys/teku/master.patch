@@ -1,8 +1,8 @@
 diff --git a/build.gradle b/build.gradle
-index ba49089..9de8cff 100644
+index 92b9179..195c3e5 100644
 --- a/build.gradle
 +++ b/build.gradle
-@@ -720,6 +720,28 @@ tasks.register('localDocker') {
+@@ -981,6 +981,28 @@ tasks.register('localDocker') {
  			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
  			into(dockerBuildDir)
  		}
@@ -31,10 +31,10 @@ index ba49089..9de8cff 100644
  		system.executor.exec {
  			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
  			workingDir dockerBuildDir
-@@ -754,6 +776,28 @@ tasks.register('distDocker')  {
+@@ -1022,6 +1044,28 @@ tasks.register('distDocker')  {
  	doLast {
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
- 		def commitHashTag = includeCommitHashInDockerTag ? '-' + grgit.head().getAbbreviatedId() : ''
+ 		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
 +		// Download and copy xatu native library
 +		def xatuVersion = "v0.0.6"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
@@ -60,11 +60,11 @@ index ba49089..9de8cff 100644
  		for (def variant in dockerJdkVariants) {
  			system.fs.copy {
  				from file("${projectDir}/docker/${variant}/Dockerfile")
-diff --git a/docker/jdk21/Dockerfile b/docker/jdk21/Dockerfile
-index 364a7be..82e5999 100644
---- a/docker/jdk21/Dockerfile
-+++ b/docker/jdk21/Dockerfile
-@@ -32,9 +32,15 @@ WORKDIR /opt/teku
+diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
+index 2485dac..73f3ff0 100644
+--- a/docker/jdk25/Dockerfile
++++ b/docker/jdk25/Dockerfile
+@@ -39,9 +39,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
@@ -80,10 +80,10 @@ index 364a7be..82e5999 100644
  ENV TEKU_REST_API_INTERFACE="0.0.0.0"
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
-diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index 6ba136d..1509e21 100644
---- a/docker/jdk25/Dockerfile
-+++ b/docker/jdk25/Dockerfile
+diff --git a/docker/jdk26/Dockerfile b/docker/jdk26/Dockerfile
+index c4ce674..fdb38c6 100644
+--- a/docker/jdk26/Dockerfile
++++ b/docker/jdk26/Dockerfile
 @@ -38,9 +38,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
@@ -261,7 +261,7 @@ index 0000000..42a70a4
 +  }
 +}
 diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
-index 1d0d09f..d6346b1 100644
+index eca139c..904648d 100644
 --- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 +++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 @@ -21,6 +21,9 @@ import java.util.concurrent.RejectedExecutionException;
@@ -274,7 +274,7 @@ index 1d0d09f..d6346b1 100644
  import tech.pegasys.teku.infrastructure.async.AsyncRunner;
  import tech.pegasys.teku.infrastructure.async.SafeFuture;
  import tech.pegasys.teku.infrastructure.bytes.Bytes4;
-@@ -129,6 +132,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+@@ -130,6 +133,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
                            .process(deserialized, message.getArrivalTimestamp())
                            .thenApply(
                                internalValidation -> {
@@ -413,18 +413,18 @@ index c06baf2..5ea1e84 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index a43b047..8babccc 100644
+index 427608b..ec0553b 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-@@ -60,6 +60,7 @@ import tech.pegasys.teku.beacon.sync.gossip.blocks.RecentBlocksFetcher;
- import tech.pegasys.teku.beacon.sync.gossip.executionpayloads.RecentExecutionPayloadsFetcher;
- import tech.pegasys.teku.beaconrestapi.BeaconRestApi;
- import tech.pegasys.teku.beaconrestapi.JsonTypeDefinitionBeaconRestApi;
+@@ -68,6 +68,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
+ import tech.pegasys.teku.dataproviders.lookup.ExecutionPayloadProvider;
+ import tech.pegasys.teku.dataproviders.lookup.SingleBlockProvider;
+ import tech.pegasys.teku.dataproviders.lookup.UnblindingExecutionPayloadProvider;
 +import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -1937,6 +1938,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2102,6 +2103,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -434,7 +434,7 @@ index a43b047..8babccc 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2441,6 +2445,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2639,6 +2643,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
@@ -480,7 +480,7 @@ index a43b047..8babccc 100644
      UInt64 genesisTime = recentChainData.getGenesisTime();
      UInt64 currentTime = timeProvider.getTimeInSeconds();
 diff --git a/settings.gradle b/settings.gradle
-index 46f1a32..3ab2e1f 100644
+index 943df07..4dbf450 100644
 --- a/settings.gradle
 +++ b/settings.gradle
 @@ -47,6 +47,7 @@ include 'infrastructure:yaml'
@@ -504,10 +504,10 @@ index eea8f12..17a6cef 100644
  	implementation project(':services:chainstorage')
  	implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index 1accd99..9c772f3 100644
+index a3d3a75..28e4df5 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-@@ -448,6 +448,13 @@ public class P2POptions {
+@@ -540,6 +540,13 @@ public class P2POptions {
        fallbackValue = "true")
    private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
  
@@ -521,7 +521,7 @@ index 1accd99..9c772f3 100644
    @Option(
        names = {"--Xexecution-proof-topics-enabled"},
        paramLabel = "<BOOLEAN>",
-@@ -685,6 +692,11 @@ public class P2POptions {
+@@ -777,6 +784,11 @@ public class P2POptions {
    }
  
    public void configure(final TekuConfiguration.Builder builder) {
