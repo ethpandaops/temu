@@ -281,7 +281,8 @@ public class XatuSidecarCore {
       eventNode.put("should_process", true);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
-      eventNode.put("attestation_data_root", attestation.getData().getBeaconBlockRoot().toHexString());
+      eventNode.put(
+          "attestation_data_root", attestation.getData().getBeaconBlockRoot().toHexString());
       eventNode.put("topic", topic);
       eventNode.put("source_root", attestation.getData().getSource().getRoot().toHexString());
       eventNode.put("target_root", attestation.getData().getTarget().getRoot().toHexString());
@@ -326,7 +327,8 @@ public class XatuSidecarCore {
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
       eventNode.put("column_index", dataColumnSidecar.getIndex().longValue());
-      eventNode.put("kzg_commitments_count",
+      eventNode.put(
+          "kzg_commitments_count",
           dataColumnSidecar.getMaybeKzgCommitments().map(c -> c.size()).orElse(0));
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
