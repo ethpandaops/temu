@@ -1,8 +1,8 @@
 diff --git a/build.gradle b/build.gradle
-index 92b9179..195c3e5 100644
+index dabbca4..eb48932 100644
 --- a/build.gradle
 +++ b/build.gradle
-@@ -981,6 +981,28 @@ tasks.register('localDocker') {
+@@ -974,6 +974,28 @@ tasks.register('localDocker') {
  			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
  			into(dockerBuildDir)
  		}
@@ -31,7 +31,7 @@ index 92b9179..195c3e5 100644
  		system.executor.exec {
  			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
  			workingDir dockerBuildDir
-@@ -1022,6 +1044,28 @@ tasks.register('distDocker')  {
+@@ -1015,6 +1037,28 @@ tasks.register('distDocker')  {
  	doLast {
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
@@ -61,7 +61,7 @@ index 92b9179..195c3e5 100644
  			system.fs.copy {
  				from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index 2485dac..73f3ff0 100644
+index f95bc16..223dd97 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
 @@ -39,9 +39,15 @@ WORKDIR /opt/teku
@@ -81,7 +81,7 @@ index 2485dac..73f3ff0 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/docker/jdk26/Dockerfile b/docker/jdk26/Dockerfile
-index c4ce674..fdb38c6 100644
+index 3e0922d..76f6297 100644
 --- a/docker/jdk26/Dockerfile
 +++ b/docker/jdk26/Dockerfile
 @@ -38,9 +38,15 @@ WORKDIR /opt/teku
@@ -492,7 +492,7 @@ index 943df07..4dbf450 100644
  include 'services:executionlayer'
  include 'services:powchain'
 diff --git a/teku/build.gradle b/teku/build.gradle
-index eea8f12..17a6cef 100644
+index 1835a33..c097b57 100644
 --- a/teku/build.gradle
 +++ b/teku/build.gradle
 @@ -29,6 +29,7 @@ dependencies {
@@ -504,10 +504,10 @@ index eea8f12..17a6cef 100644
  	implementation project(':services:chainstorage')
  	implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index a3d3a75..28e4df5 100644
+index 1176faf..426defd 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-@@ -540,6 +540,13 @@ public class P2POptions {
+@@ -518,6 +518,13 @@ public class P2POptions {
        fallbackValue = "true")
    private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
  
@@ -521,7 +521,7 @@ index a3d3a75..28e4df5 100644
    @Option(
        names = {"--Xexecution-proof-topics-enabled"},
        paramLabel = "<BOOLEAN>",
-@@ -777,6 +784,11 @@ public class P2POptions {
+@@ -755,6 +762,11 @@ public class P2POptions {
    }
  
    public void configure(final TekuConfiguration.Builder builder) {
