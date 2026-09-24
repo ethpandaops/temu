@@ -1,5 +1,5 @@
 diff --git a/build.gradle b/build.gradle
-index 7a3f6a2..6fd3e09 100644
+index ba3f2a7..d2265ee 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -928,6 +928,28 @@ tasks.register('localDocker') {
