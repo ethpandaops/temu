@@ -142,7 +142,7 @@ echo -e "${GREEN}  Copied plugins/xatu/${NC}"
 echo ""
 echo -e "${BLUE}=== Downloading libxatu ===${NC}"
 
-XATU_SIDECAR_VERSION="v0.0.6"
+XATU_SIDECAR_VERSION="v0.0.7"
 if [ ! -f "libxatu.so" ]; then
     echo -e "${BLUE}  Downloading libxatu.so (${XATU_SIDECAR_VERSION})...${NC}"
 
