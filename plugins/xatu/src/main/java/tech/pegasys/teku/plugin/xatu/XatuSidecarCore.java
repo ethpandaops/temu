@@ -378,7 +378,7 @@ public class XatuSidecarCore {
       eventNode.put("timestamp_ms", timestampMs);
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
-      eventNode.put("builder_index", envelope.getBuilderIndex().longValue());
+      eventNode.put("builder_index", envelope.getBuilderIndex().bigIntegerValue());
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
@@ -396,10 +396,10 @@ public class XatuSidecarCore {
       eventNode.put("timestamp_ms", timestampMs);
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
-      eventNode.put("builder_index", bid.getBuilderIndex().longValue());
-      eventNode.put("value", bid.getValue().longValue());
-      eventNode.put("execution_payment", bid.getExecutionPayment().longValue());
-      eventNode.put("gas_limit", bid.getGasLimit().longValue());
+      eventNode.put("builder_index", bid.getBuilderIndex().bigIntegerValue());
+      eventNode.put("value", bid.getValue().bigIntegerValue());
+      eventNode.put("execution_payment", bid.getExecutionPayment().bigIntegerValue());
+      eventNode.put("gas_limit", bid.getGasLimit().bigIntegerValue());
       eventNode.put("blob_kzg_commitment_count", bid.getBlobKzgCommitments().size());
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
@@ -418,7 +418,7 @@ public class XatuSidecarCore {
       eventNode.put("timestamp_ms", timestampMs);
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
-      eventNode.put("validator_index", payloadAttestation.getValidatorIndex().longValue());
+      eventNode.put("validator_index", payloadAttestation.getValidatorIndex().bigIntegerValue());
       eventNode.put("payload_present", data.isPayloadPresent());
       eventNode.put("blob_data_available", data.isBlobDataAvailable());
       eventNode.put("message_size", messageSize);
@@ -436,8 +436,8 @@ public class XatuSidecarCore {
       eventNode.put("timestamp_ms", timestampMs);
       eventNode.put("slot", slot);
       eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
-      eventNode.put("validator_index", preferences.getValidatorIndex().longValue());
-      eventNode.put("target_gas_limit", preferences.getTargetGasLimit().longValue());
+      eventNode.put("validator_index", preferences.getValidatorIndex().bigIntegerValue());
+      eventNode.put("target_gas_limit", preferences.getTargetGasLimit().bigIntegerValue());
       eventNode.put("message_size", messageSize);
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
