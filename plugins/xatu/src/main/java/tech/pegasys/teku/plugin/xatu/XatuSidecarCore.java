@@ -442,8 +442,7 @@ public class XatuSidecarCore {
       eventNode.put("peer_id", peerId);
       eventNode.put("message_id", messageId);
       eventNode.put("topic", topic);
-      eventNode.put(
-          "fee_recipient", preferences.getFeeRecipient().getWrappedBytes().toHexString());
+      eventNode.put("fee_recipient", preferences.getFeeRecipient().getWrappedBytes().toHexString());
       return Optional.of(eventNode);
     }
 
