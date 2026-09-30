@@ -1,5 +1,5 @@
 diff --git a/build.gradle b/build.gradle
-index ba3f2a7..d2265ee 100644
+index ba3f2a7..b0d14e1 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -928,6 +928,28 @@ tasks.register('localDocker') {
@@ -7,7 +7,7 @@ index ba3f2a7..d2265ee 100644
  			into(dockerBuildDir)
  		}
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.6"
++		def xatuVersion = "v0.0.7"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"
@@ -36,7 +36,7 @@ index ba3f2a7..d2265ee 100644
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.6"
++		def xatuVersion = "v0.0.7"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"

@@ -7,6 +7,7 @@ dependencies {
   implementation project(':infrastructure:time')
   implementation project(':infrastructure:unsigned')
   implementation project(':ethereum:spec')
+  implementation project(':ethereum:execution-types')
 
   implementation 'net.java.dev.jna:jna'
   implementation 'org.apache.logging.log4j:log4j-api'

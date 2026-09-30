@@ -37,7 +37,16 @@ import tech.pegasys.teku.infrastructure.unsigned.UInt64;
 import tech.pegasys.teku.infrastructure.version.VersionProvider;
 import tech.pegasys.teku.spec.datastructures.blobs.DataColumnSidecar;
 import tech.pegasys.teku.spec.datastructures.blobs.versions.deneb.BlobSidecar;
+import tech.pegasys.teku.spec.datastructures.blobs.versions.gloas.DataColumnSidecarGloas;
 import tech.pegasys.teku.spec.datastructures.blocks.SignedBeaconBlock;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.ExecutionPayloadBid;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.ExecutionPayloadEnvelope;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.PayloadAttestationData;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.PayloadAttestationMessage;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.ProposerPreferences;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.SignedExecutionPayloadBid;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.SignedExecutionPayloadEnvelope;
+import tech.pegasys.teku.spec.datastructures.epbs.versions.gloas.SignedProposerPreferences;
 import tech.pegasys.teku.spec.datastructures.operations.Attestation;
 import tech.pegasys.teku.spec.datastructures.operations.SignedAggregateAndProof;
 
@@ -319,6 +328,21 @@ public class XatuSidecarCore {
           blobSidecar.getSignedBeaconBlockHeader().getMessage().getStateRoot().toHexString());
       return Optional.of(eventNode);
 
+    } else if (message instanceof DataColumnSidecarGloas dataColumnSidecar) {
+      ObjectNode eventNode = MAPPER.createObjectNode();
+      eventNode.put("event_type", "DATA_COLUMN_SIDECAR_GLOAS");
+      long slot = dataColumnSidecar.getSlot().longValue();
+      eventNode.put("timestamp_ms", timestampMs);
+      eventNode.put("slot", slot);
+      eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
+      eventNode.put("column_index", dataColumnSidecar.getIndex().longValue());
+      eventNode.put("message_size", messageSize);
+      eventNode.put("peer_id", peerId);
+      eventNode.put("message_id", messageId);
+      eventNode.put("topic", topic);
+      eventNode.put("block_root", dataColumnSidecar.getBeaconBlockRoot().toHexString());
+      return Optional.of(eventNode);
+
     } else if (message instanceof DataColumnSidecar dataColumnSidecar) {
       ObjectNode eventNode = MAPPER.createObjectNode();
       eventNode.put("event_type", "DATA_COLUMN_SIDECAR");
@@ -344,6 +368,81 @@ public class XatuSidecarCore {
                 eventNode.put("parent_root", header.getMessage().getParentRoot().toHexString());
                 eventNode.put("state_root", header.getMessage().getStateRoot().toHexString());
               });
+      return Optional.of(eventNode);
+
+    } else if (message instanceof SignedExecutionPayloadEnvelope signedEnvelope) {
+      ObjectNode eventNode = MAPPER.createObjectNode();
+      eventNode.put("event_type", "EXECUTION_PAYLOAD_ENVELOPE");
+      ExecutionPayloadEnvelope envelope = signedEnvelope.getMessage();
+      long slot = envelope.getSlot().longValue();
+      eventNode.put("timestamp_ms", timestampMs);
+      eventNode.put("slot", slot);
+      eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
+      eventNode.put("builder_index", envelope.getBuilderIndex().bigIntegerValue());
+      eventNode.put("message_size", messageSize);
+      eventNode.put("peer_id", peerId);
+      eventNode.put("message_id", messageId);
+      eventNode.put("topic", topic);
+      eventNode.put("beacon_block_root", envelope.getBeaconBlockRoot().toHexString());
+      eventNode.put("block_hash", envelope.getPayload().getBlockHash().toHexString());
+      eventNode.put("state_root", envelope.getPayload().getStateRoot().toHexString());
+      return Optional.of(eventNode);
+
+    } else if (message instanceof SignedExecutionPayloadBid signedBid) {
+      ObjectNode eventNode = MAPPER.createObjectNode();
+      eventNode.put("event_type", "EXECUTION_PAYLOAD_BID");
+      ExecutionPayloadBid bid = signedBid.getMessage();
+      long slot = bid.getSlot().longValue();
+      eventNode.put("timestamp_ms", timestampMs);
+      eventNode.put("slot", slot);
+      eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
+      eventNode.put("builder_index", bid.getBuilderIndex().bigIntegerValue());
+      eventNode.put("value", bid.getValue().bigIntegerValue());
+      eventNode.put("execution_payment", bid.getExecutionPayment().bigIntegerValue());
+      eventNode.put("gas_limit", bid.getGasLimit().bigIntegerValue());
+      eventNode.put("blob_kzg_commitment_count", bid.getBlobKzgCommitments().size());
+      eventNode.put("message_size", messageSize);
+      eventNode.put("peer_id", peerId);
+      eventNode.put("message_id", messageId);
+      eventNode.put("topic", topic);
+      eventNode.put("block_hash", bid.getBlockHash().toHexString());
+      eventNode.put("parent_block_hash", bid.getParentBlockHash().toHexString());
+      eventNode.put("fee_recipient", bid.getFeeRecipient().getWrappedBytes().toHexString());
+      return Optional.of(eventNode);
+
+    } else if (message instanceof PayloadAttestationMessage payloadAttestation) {
+      ObjectNode eventNode = MAPPER.createObjectNode();
+      eventNode.put("event_type", "PAYLOAD_ATTESTATION_MESSAGE");
+      PayloadAttestationData data = payloadAttestation.getData();
+      long slot = data.getSlot().longValue();
+      eventNode.put("timestamp_ms", timestampMs);
+      eventNode.put("slot", slot);
+      eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
+      eventNode.put("validator_index", payloadAttestation.getValidatorIndex().bigIntegerValue());
+      eventNode.put("payload_present", data.isPayloadPresent());
+      eventNode.put("blob_data_available", data.isBlobDataAvailable());
+      eventNode.put("message_size", messageSize);
+      eventNode.put("peer_id", peerId);
+      eventNode.put("message_id", messageId);
+      eventNode.put("topic", topic);
+      eventNode.put("beacon_block_root", data.getBeaconBlockRoot().toHexString());
+      return Optional.of(eventNode);
+
+    } else if (message instanceof SignedProposerPreferences signedPreferences) {
+      ObjectNode eventNode = MAPPER.createObjectNode();
+      eventNode.put("event_type", "PROPOSER_PREFERENCES");
+      ProposerPreferences preferences = signedPreferences.getMessage();
+      long slot = preferences.getProposalSlot().longValue();
+      eventNode.put("timestamp_ms", timestampMs);
+      eventNode.put("slot", slot);
+      eventNode.put("epoch", slot / SLOTS_PER_EPOCH);
+      eventNode.put("validator_index", preferences.getValidatorIndex().bigIntegerValue());
+      eventNode.put("target_gas_limit", preferences.getTargetGasLimit().bigIntegerValue());
+      eventNode.put("message_size", messageSize);
+      eventNode.put("peer_id", peerId);
+      eventNode.put("message_id", messageId);
+      eventNode.put("topic", topic);
+      eventNode.put("fee_recipient", preferences.getFeeRecipient().getWrappedBytes().toHexString());
       return Optional.of(eventNode);
     }
 
