@@ -61,10 +61,10 @@ index bebc460..14fd4b8 100644
  			system.fs.copy {
  				from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index f95bc16..223dd97 100644
+index a316c3d..f62b6f3 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
-@@ -39,9 +39,15 @@ WORKDIR /opt/teku
+@@ -40,9 +40,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
@@ -81,10 +81,10 @@ index f95bc16..223dd97 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/docker/jdk26/Dockerfile b/docker/jdk26/Dockerfile
-index 3e0922d..76f6297 100644
+index 2005e3d..689aeb3 100644
 --- a/docker/jdk26/Dockerfile
 +++ b/docker/jdk26/Dockerfile
-@@ -38,9 +38,15 @@ WORKDIR /opt/teku
+@@ -39,9 +39,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
@@ -413,7 +413,7 @@ index c06baf2..5ea1e84 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 57eef68..eec804a 100644
+index 1bf778c..400eac3 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -69,6 +69,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
@@ -424,7 +424,7 @@ index 57eef68..eec804a 100644
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -2133,6 +2134,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2134,6 +2135,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -434,7 +434,7 @@ index 57eef68..eec804a 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2670,6 +2674,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2671,6 +2675,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
@@ -492,10 +492,10 @@ index 943df07..4dbf450 100644
  include 'services:executionlayer'
  include 'services:powchain'
 diff --git a/teku/build.gradle b/teku/build.gradle
-index 1835a33..c097b57 100644
+index 92a40d4..9b932b7 100644
 --- a/teku/build.gradle
 +++ b/teku/build.gradle
-@@ -29,6 +29,7 @@ dependencies {
+@@ -30,6 +30,7 @@ dependencies {
  	implementation project(':networking:eth2')
  	implementation project(':networking:nat')
  	implementation project(':services:beaconchain')
