@@ -1,8 +1,8 @@
 diff --git a/build.gradle b/build.gradle
-index bebc460..14fd4b8 100644
+index 5f026a7..5813d89 100644
 --- a/build.gradle
 +++ b/build.gradle
-@@ -941,6 +941,28 @@ tasks.register('localDocker') {
+@@ -951,6 +951,28 @@ tasks.register('localDocker') {
  			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
  			into(dockerBuildDir)
  		}
@@ -31,7 +31,7 @@ index bebc460..14fd4b8 100644
  		system.executor.exec {
  			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
  			workingDir dockerBuildDir
-@@ -982,6 +1004,28 @@ tasks.register('distDocker')  {
+@@ -992,6 +1014,28 @@ tasks.register('distDocker')  {
  	doLast {
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
@@ -261,7 +261,7 @@ index 0000000..42a70a4
 +  }
 +}
 diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
-index eca139c..904648d 100644
+index 8146880..46809d7 100644
 --- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 +++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
 @@ -21,6 +21,9 @@ import java.util.concurrent.RejectedExecutionException;
@@ -275,28 +275,28 @@ index eca139c..904648d 100644
  import tech.pegasys.teku.infrastructure.async.SafeFuture;
  import tech.pegasys.teku.infrastructure.bytes.Bytes4;
 @@ -130,6 +133,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
-                           .process(deserialized, message.getArrivalTimestamp())
-                           .thenApply(
-                               internalValidation -> {
-+                                // Publish event for accepted messages
-+                                if (internalValidation.isAccept()) {
-+                                  EventChannelsHolder.get().ifPresent(
-+                                      channels -> {
-+                                        GossipMessageAcceptedEvent event = new GossipMessageAcceptedEvent(
-+                                            deserialized,
-+                                            getTopic(),
-+                                            message.getMessageId(),
-+                                            message.getArrivalTimestamp(),
-+                                            message.getTransportPeerId(),
-+                                            message.getOriginalMessage().size());
-+                                        channels
-+                                            .getPublisher(GossipMessageAcceptedChannel.class)
-+                                            .onGossipMessageAccepted(event);
-+                                      });
-+                                }
-                                 processMessage(internalValidation, message);
-                                 return GossipSubValidationUtil.fromInternalValidationResult(
-                                     internalValidation);
+                   .process(deserialized, message.getArrivalTimestamp())
+                   .thenApply(
+                       internalValidation -> {
++                        // Publish event for accepted messages
++                        if (internalValidation.isAccept()) {
++                          EventChannelsHolder.get().ifPresent(
++                              channels -> {
++                                GossipMessageAcceptedEvent event = new GossipMessageAcceptedEvent(
++                                    deserialized,
++                                    getTopic(),
++                                    message.getMessageId(),
++                                    message.getArrivalTimestamp(),
++                                    message.getTransportPeerId(),
++                                    message.getOriginalMessage().size());
++                                channels
++                                    .getPublisher(GossipMessageAcceptedChannel.class)
++                                    .onGossipMessageAccepted(event);
++                              });
++                        }
+                         processMessage(internalValidation, message);
+                         return GossipSubValidationUtil.fromInternalValidationResult(
+                             internalValidation);
 diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
 index 5a9a990..de7fcf7 100644
 --- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
