@@ -7,10 +7,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      teku_ref:
+        description: 'consensys/teku branch or tag to build (needs patches/consensys/teku/<ref>.patch). Refs other than master get <ref>-<sha7> tags and never touch latest.'
+        required: false
+        default: master
+        type: string
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ethpandaops/temu
+  TEKU_REF: ${{ inputs.teku_ref || 'master' }}
 
 jobs:
   build-amd64:
@@ -31,7 +38,11 @@ jobs:
 
       - name: Prepare patched source
         run: |
-          ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
+          if [[ ! "$TEKU_REF" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
+            echo "Invalid teku_ref: $TEKU_REF" >&2
+            exit 1
+          fi
+          ./scripts/temu-build.sh -r "consensys/teku" -b "$TEKU_REF" --skip-build --ci
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -44,8 +55,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "release" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-          else
+          elif [ "$TEKU_REF" == "master" ]; then
             echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${TEKU_REF}-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
           fi
 
       - name: Build Docker image via Gradle
@@ -76,7 +89,11 @@ jobs:
 
       - name: Prepare patched source
         run: |
-          ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
+          if [[ ! "$TEKU_REF" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
+            echo "Invalid teku_ref: $TEKU_REF" >&2
+            exit 1
+          fi
+          ./scripts/temu-build.sh -r "consensys/teku" -b "$TEKU_REF" --skip-build --ci
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -89,8 +106,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "release" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-          else
+          elif [ "$TEKU_REF" == "master" ]; then
             echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${TEKU_REF}-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
           fi
 
       - name: Build Docker image via Gradle
@@ -126,8 +145,8 @@ jobs:
             ${AMD64_IMAGE} ${ARM64_IMAGE}
           docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}
 
-          # Create latest tag for releases and master pushes
-          if [ "${{ github.event_name }}" == "release" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
+          # latest only tracks teku master builds from releases and master pushes
+          if [ "$TEKU_REF" == "master" ] && { [ "${{ github.event_name }}" == "release" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; }; then
             echo "Creating manifest: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
               ${AMD64_IMAGE} ${ARM64_IMAGE}
@@ -140,8 +159,10 @@ jobs:
         run: |
           echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Teku ref:** \`${TEKU_REF}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Images:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}\`" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" == "release" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
+          if [ "$TEKU_REF" == "master" ] && { [ "${{ github.event_name }}" == "release" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; }; then
             echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
           fi

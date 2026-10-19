@@ -1,0 +1,535 @@
+diff --git a/build.gradle b/build.gradle
+index 0675125..24f6851 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -951,6 +951,28 @@ tasks.register('localDocker') {
+ 			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
+ 			into(dockerBuildDir)
+ 		}
++		// Download and copy xatu native library
++		def xatuVersion = "v0.0.7"
++		def libxatuFile = file("${projectDir}/libxatu.so")
++		if (!libxatuFile.exists()) {
++			def platform = "linux"
++			def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++			def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++			def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++			println "Downloading xatu-sidecar from ${url}..."
++			def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++			tarFile.parentFile.mkdirs()
++			new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++			system.executor.exec {
++				commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++			}
++			tarFile.delete()
++			println "Downloaded libxatu.so successfully"
++		}
++		system.fs.copy {
++			from libxatuFile
++			into(dockerBuildDir)
++		}
+ 		system.executor.exec {
+ 			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
+ 			workingDir dockerBuildDir
+@@ -992,6 +1014,28 @@ tasks.register('distDocker')  {
+ 	doLast {
+ 		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
+ 		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
++		// Download and copy xatu native library
++		def xatuVersion = "v0.0.7"
++		def libxatuFile = file("${projectDir}/libxatu.so")
++		if (!libxatuFile.exists()) {
++			def platform = "linux"
++			def arch = System.getProperty("os.arch") == "aarch64" ? "arm64" : "amd64"
++			def tarName = "xatu-sidecar_${xatuVersion.substring(1)}_${platform}_${arch}.tar.gz"
++			def url = "https://github.com/ethpandaops/xatu-sidecar/releases/download/${xatuVersion}/${tarName}"
++			println "Downloading xatu-sidecar from ${url}..."
++			def tarFile = file("${buildDir}/xatu-sidecar.tar.gz")
++			tarFile.parentFile.mkdirs()
++			new URL(url).withInputStream { is -> tarFile.bytes = is.bytes }
++			system.executor.exec {
++				commandLine 'tar', '-xzf', tarFile.absolutePath, '-C', projectDir.absolutePath, 'libxatu.so'
++			}
++			tarFile.delete()
++			println "Downloaded libxatu.so successfully"
++		}
++		system.fs.copy {
++			from libxatuFile
++			into(dockerBuildDir)
++		}
+ 		for (def variant in dockerJdkVariants) {
+ 			system.fs.copy {
+ 				from file("${projectDir}/docker/${variant}/Dockerfile")
+diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
+index a316c3d..f62b6f3 100644
+--- a/docker/jdk25/Dockerfile
++++ b/docker/jdk25/Dockerfile
+@@ -40,9 +40,15 @@ WORKDIR /opt/teku
+ # copy application (with libraries inside)
+ COPY --chown=teku:teku teku /opt/teku/
+ 
++# Copy xatu native library
++COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
++
+ # Default to UTF-8 locale
+ ENV LANG=C.UTF-8
+ 
++# Ensure xatu library is discoverable
++ENV LD_LIBRARY_PATH="/usr/lib"
++
+ ENV TEKU_REST_API_INTERFACE="0.0.0.0"
+ ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
+ ENV TEKU_METRICS_INTERFACE="0.0.0.0"
+diff --git a/docker/jdk26/Dockerfile b/docker/jdk26/Dockerfile
+index 2005e3d..689aeb3 100644
+--- a/docker/jdk26/Dockerfile
++++ b/docker/jdk26/Dockerfile
+@@ -39,9 +39,15 @@ WORKDIR /opt/teku
+ # copy application (with libraries inside)
+ COPY --chown=teku:teku teku /opt/teku/
+ 
++# Copy xatu native library
++COPY --chown=teku:teku libxatu.so /usr/lib/libxatu.so
++
+ # Default to UTF-8 locale
+ ENV LANG=C.UTF-8
+ 
++# Ensure xatu library is discoverable
++ENV LD_LIBRARY_PATH="/usr/lib"
++
+ ENV TEKU_REST_API_INTERFACE="0.0.0.0"
+ ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
+ ENV TEKU_METRICS_INTERFACE="0.0.0.0"
+diff --git a/ethereum/events/build.gradle b/ethereum/events/build.gradle
+index 6611950..1017271 100644
+--- a/ethereum/events/build.gradle
++++ b/ethereum/events/build.gradle
+@@ -1,5 +1,10 @@
+ dependencies {
+ 	api project(':infrastructure:events')
++	api project(':infrastructure:ssz')
++	api project(':infrastructure:unsigned')
++
++	implementation 'io.consensys.tuweni:tuweni-bytes'
++
+ 	testFixturesImplementation project(':infrastructure:unsigned')
+ }
+ 
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java
+new file mode 100644
+index 0000000..b783cf5
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/EventChannelsHolder.java
+@@ -0,0 +1,40 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import java.util.Optional;
++import tech.pegasys.teku.infrastructure.events.EventChannels;
++
++/**
++ * Static holder for EventChannels to allow gossip handlers to publish events without constructor
++ * injection through the entire call chain.
++ */
++public final class EventChannelsHolder {
++
++  private static volatile EventChannels instance;
++
++  private EventChannelsHolder() {}
++
++  public static void set(final EventChannels eventChannels) {
++    instance = eventChannels;
++  }
++
++  public static Optional<EventChannels> get() {
++    return Optional.ofNullable(instance);
++  }
++
++  public static void clear() {
++    instance = null;
++  }
++}
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java
+new file mode 100644
+index 0000000..cdce04c
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedChannel.java
+@@ -0,0 +1,20 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import tech.pegasys.teku.infrastructure.events.VoidReturningChannelInterface;
++
++public interface GossipMessageAcceptedChannel extends VoidReturningChannelInterface {
++  void onGossipMessageAccepted(GossipMessageAcceptedEvent event);
++}
+diff --git a/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java
+new file mode 100644
+index 0000000..42a70a4
+--- /dev/null
++++ b/ethereum/events/src/main/java/tech/pegasys/teku/ethereum/events/GossipMessageAcceptedEvent.java
+@@ -0,0 +1,67 @@
++/*
++ * Copyright Consensys Software Inc., 2025
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
++ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations under the License.
++ */
++
++package tech.pegasys.teku.ethereum.events;
++
++import java.util.Optional;
++import org.apache.tuweni.bytes.Bytes;
++import tech.pegasys.teku.infrastructure.ssz.SszData;
++import tech.pegasys.teku.infrastructure.unsigned.UInt64;
++
++public class GossipMessageAcceptedEvent {
++  private final SszData message;
++  private final String topic;
++  private final Bytes messageId;
++  private final Optional<UInt64> arrivalTimestamp;
++  private final Optional<String> transportPeerId;
++  private final int messageSize;
++
++  public GossipMessageAcceptedEvent(
++      final SszData message,
++      final String topic,
++      final Bytes messageId,
++      final Optional<UInt64> arrivalTimestamp,
++      final Optional<String> transportPeerId,
++      final int messageSize) {
++    this.message = message;
++    this.topic = topic;
++    this.messageId = messageId;
++    this.arrivalTimestamp = arrivalTimestamp;
++    this.transportPeerId = transportPeerId;
++    this.messageSize = messageSize;
++  }
++
++  public SszData getMessage() {
++    return message;
++  }
++
++  public String getTopic() {
++    return topic;
++  }
++
++  public Bytes getMessageId() {
++    return messageId;
++  }
++
++  public Optional<UInt64> getArrivalTimestamp() {
++    return arrivalTimestamp;
++  }
++
++  public Optional<String> getTransportPeerId() {
++    return transportPeerId;
++  }
++
++  public int getMessageSize() {
++    return messageSize;
++  }
++}
+diff --git a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
+index 8146880..46809d7 100644
+--- a/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
++++ b/networking/eth2/src/main/java/tech/pegasys/teku/networking/eth2/gossip/topics/topichandlers/Eth2TopicHandler.java
+@@ -21,6 +21,9 @@ import java.util.concurrent.RejectedExecutionException;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.tuweni.bytes.Bytes;
++import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
++import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedChannel;
++import tech.pegasys.teku.ethereum.events.GossipMessageAcceptedEvent;
+ import tech.pegasys.teku.infrastructure.async.AsyncRunner;
+ import tech.pegasys.teku.infrastructure.async.SafeFuture;
+ import tech.pegasys.teku.infrastructure.bytes.Bytes4;
+@@ -130,6 +133,22 @@ public class Eth2TopicHandler<MessageT extends SszData> implements TopicHandler
+                   .process(deserialized, message.getArrivalTimestamp())
+                   .thenApply(
+                       internalValidation -> {
++                        // Publish event for accepted messages
++                        if (internalValidation.isAccept()) {
++                          EventChannelsHolder.get().ifPresent(
++                              channels -> {
++                                GossipMessageAcceptedEvent event = new GossipMessageAcceptedEvent(
++                                    deserialized,
++                                    getTopic(),
++                                    message.getMessageId(),
++                                    message.getArrivalTimestamp(),
++                                    message.getTransportPeerId(),
++                                    message.getOriginalMessage().size());
++                                channels
++                                    .getPublisher(GossipMessageAcceptedChannel.class)
++                                    .onGossipMessageAccepted(event);
++                              });
++                        }
+                         processMessage(internalValidation, message);
+                         return GossipSubValidationUtil.fromInternalValidationResult(
+                             internalValidation);
+diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
+index 5a9a990..de7fcf7 100644
+--- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
++++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/gossip/PreparedGossipMessage.java
+@@ -39,6 +39,18 @@ public interface PreparedGossipMessage {
+ 
+   Optional<UInt64> getArrivalTimestamp();
+ 
++  /**
++   * Returns the transport peer ID if available.
++   *
++   * <p>Note: This is the relay (transport) peer that delivered the message to this node, not the
++   * original publishing peer. In GossipSub privacy modes, the origin is intentionally not exposed.
++   *
++   * @return an optional base58 peer ID of the relay peer
++   */
++  default Optional<String> getTransportPeerId() {
++    return Optional.empty();
++  }
++
+   class DecodedMessageResult {
+     private final Optional<Bytes> decodedMessage;
+     private final Optional<Throwable> decodingException;
+diff --git a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
+index c06baf2..5ea1e84 100644
+--- a/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
++++ b/networking/p2p/src/main/java/tech/pegasys/teku/networking/p2p/libp2p/gossip/PreparedPubsubMessage.java
+@@ -15,13 +15,19 @@ package tech.pegasys.teku.networking.p2p.libp2p.gossip;
+ 
+ import com.google.common.base.Supplier;
+ import com.google.common.base.Suppliers;
++import io.libp2p.core.PeerId;
+ import io.libp2p.core.pubsub.MessageApi;
+ import io.libp2p.etc.types.WBytes;
+ import io.libp2p.pubsub.AbstractPubsubMessage;
+ import io.libp2p.pubsub.PubsubMessage;
+ import io.libp2p.pubsub.gossip.GossipRouter;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
++import java.util.Optional;
++import org.apache.tuweni.bytes.Bytes;
+ import org.jetbrains.annotations.NotNull;
+ import pubsub.pb.Rpc.Message;
++import tech.pegasys.teku.infrastructure.unsigned.UInt64;
+ import tech.pegasys.teku.networking.p2p.gossip.PreparedGossipMessage;
+ 
+ /**
+@@ -37,6 +43,7 @@ public class PreparedPubsubMessage extends AbstractPubsubMessage {
+   private final Message protobufMessage;
+   private final PreparedGossipMessage preparedMessage;
+   private final Supplier<WBytes> cachedMessageId;
++  private PreparedGossipMessage cachedPreparedWithTransport;
+ 
+   public PreparedPubsubMessage(
+       final Message protobufMessage, final PreparedGossipMessage preparedMessage) {
+@@ -59,6 +66,58 @@ public class PreparedPubsubMessage extends AbstractPubsubMessage {
+   }
+ 
+   public PreparedGossipMessage getPreparedMessage() {
+-    return preparedMessage;
++    // Lazily cache a wrapper that reads transport peer on demand
++    PreparedGossipMessage local = cachedPreparedWithTransport;
++    if (local == null) {
++      local = new PreparedGossipMessageWithTransportPeer(preparedMessage, this);
++      cachedPreparedWithTransport = local;
++    }
++    return local;
++  }
++
++  private static class PreparedGossipMessageWithTransportPeer implements PreparedGossipMessage {
++    private final PreparedGossipMessage delegate;
++    private final PreparedPubsubMessage parent;
++
++    PreparedGossipMessageWithTransportPeer(
++        final PreparedGossipMessage delegate, final PreparedPubsubMessage parent) {
++      this.delegate = delegate;
++      this.parent = parent;
++    }
++
++    @Override
++    public Bytes getMessageId() {
++      return delegate.getMessageId();
++    }
++
++    @Override
++    public DecodedMessageResult getDecodedMessage() {
++      return delegate.getDecodedMessage();
++    }
++
++    @Override
++    public Bytes getOriginalMessage() {
++      return delegate.getOriginalMessage();
++    }
++
++    @Override
++    public Optional<UInt64> getArrivalTimestamp() {
++      return delegate.getArrivalTimestamp();
++    }
++
++    @Override
++    public Optional<String> getTransportPeerId() {
++      try {
++        // Use reflection to call getTransportPeer() if available (from modified jvm-libp2p)
++        Method method = parent.getClass().getMethod("getTransportPeer");
++        Object result = method.invoke(parent);
++        if (result instanceof PeerId peerId) {
++          return Optional.of(peerId.toBase58());
++        }
++      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
++        // Method not available in this version of jvm-libp2p
++      }
++      return Optional.empty();
++    }
+   }
+ }
+diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
+index 6010417..55a69df 100644
+--- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
++++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
+@@ -71,6 +71,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
+ import tech.pegasys.teku.dataproviders.lookup.ExecutionPayloadProvider;
+ import tech.pegasys.teku.dataproviders.lookup.SingleBlockProvider;
+ import tech.pegasys.teku.dataproviders.lookup.UnblindingExecutionPayloadProvider;
++import tech.pegasys.teku.ethereum.events.EventChannelsHolder;
+ import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
+ import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
+ import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
+@@ -2139,6 +2140,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+       return;
+     }
+ 
++    // Initialize Xatu plugin if configured
++    initializeXatuPlugin();
++
+     DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
+     final Optional<Integer> maybeUdpPort =
+         discoveryConfig.isDiscoveryEnabled()
+@@ -2742,6 +2746,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+         genesisState.getGenesisTime());
+   }
+ 
++  private void initializeXatuPlugin() {
++    String xatuConfig = System.getProperty("xatu.config");
++    if (xatuConfig == null) {
++      xatuConfig = System.getenv("XATU_CONFIG");
++    }
++
++    if (xatuConfig != null) {
++      try {
++        EventChannelsHolder.set(eventChannels);
++
++        // Extract runtime data from Teku
++        var specConfig = spec.getGenesisSpecConfig();
++        long genesisTime = recentChainData.getGenesisTime().longValue();
++        String networkName = beaconConfig.eth2NetworkConfig().getEth2Network()
++            .map(n -> n.configName()).orElse("unknown");
++        long networkId = specConfig.getDepositNetworkId();
++        int slotsPerEpoch = specConfig.getSlotsPerEpoch();
++        int secondsPerSlot = specConfig.getSecondsPerSlot();
++
++        Class<?> xatuPluginClass = Class.forName("tech.pegasys.teku.plugin.xatu.XatuPlugin");
++        Object xatuPlugin = xatuPluginClass
++            .getConstructor(String.class)
++            .newInstance(xatuConfig);
++
++        xatuPluginClass.getMethod("initialize",
++            EventChannels.class, long.class, String.class, long.class, int.class, int.class)
++            .invoke(xatuPlugin, eventChannels, genesisTime, networkName, networkId,
++                    slotsPerEpoch, secondsPerSlot);
++
++        LOG.info("Xatu plugin initialized with config: {}", xatuConfig);
++      } catch (ClassNotFoundException e) {
++        LOG.debug("Xatu plugin not available");
++      } catch (Exception e) {
++        LOG.error("Failed to initialize Xatu plugin", e);
++      }
++    }
++  }
++
+   protected void onStoreInitialized() {
+     UInt64 genesisTime = recentChainData.getGenesisTime();
+     UInt64 currentTime = timeProvider.getTimeInSeconds();
+diff --git a/settings.gradle b/settings.gradle
+index 943df07..4dbf450 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -47,6 +47,7 @@ include 'infrastructure:yaml'
+ include 'networking:eth2'
+ include 'networking:nat'
+ include 'networking:p2p'
++include 'plugins:xatu'
+ include 'services'
+ include 'services:executionlayer'
+ include 'services:powchain'
+diff --git a/teku/build.gradle b/teku/build.gradle
+index 92a40d4..9b932b7 100644
+--- a/teku/build.gradle
++++ b/teku/build.gradle
+@@ -30,6 +30,7 @@ dependencies {
+ 	implementation project(':networking:eth2')
+ 	implementation project(':networking:nat')
+ 	implementation project(':services:beaconchain')
++	implementation project(':plugins:xatu')
+ 	implementation project(':services:bootnode')
+ 	implementation project(':services:chainstorage')
+ 	implementation project(':services:executionlayer')
+diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
+index 1176faf..426defd 100644
+--- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
++++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
+@@ -518,6 +518,13 @@ public class P2POptions {
+       fallbackValue = "true")
+   private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
+ 
++  @Option(
++      names = {"--xatu-config"},
++      paramLabel = "<FILE>",
++      description = "Path to Xatu configuration file",
++      arity = "0..1")
++  private String xatuConfigPath = null;
++
+   @Option(
+       names = {"--Xexecution-proof-topics-enabled"},
+       paramLabel = "<BOOLEAN>",
+@@ -755,6 +762,11 @@ public class P2POptions {
+   }
+ 
+   public void configure(final TekuConfiguration.Builder builder) {
++    // Pass Xatu config to system property if provided via CLI
++    if (xatuConfigPath != null) {
++      System.setProperty("xatu.config", xatuConfigPath);
++    }
++
+     // From a discovery configuration perspective, direct peers are static peers
+     p2pStaticPeers.addAll(p2pDirectPeers);
+ 

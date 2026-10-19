@@ -14,7 +14,8 @@ temu/
 │   └── xatu/                     # Xatu Sidecar plugin for Teku integration
 ├── patches/
 │   └── consensys/teku/
-│       └── master.patch          # Base patch: gossip hooks, xatu init, CLI flag
+│       ├── master.patch          # Base patch: gossip hooks, xatu init, CLI flag
+│       └── <tag>.patch           # Same patch rebased onto a teku release tag
 ├── ci/
 │   └── disable-upstream-workflows.sh
 ├── .github/workflows/
@@ -160,6 +161,7 @@ Docker images are built using Teku's built-in `./gradlew distDocker`, which prod
 
 The patch includes Java source changes and build configuration:
 - **`master.patch`**: Adds EventChannels for gossip message notifications, xatu plugin initialization hooks, `--xatu-config` CLI flag, transport peer ID support, build dependencies, Gradle Docker tasks, and Dockerfile libxatu.so integration
+- **`<tag>.patch`** (e.g. `26.10.1.patch`): The same changes rebased onto a teku release tag. Build an image from it by running `docker.yml` via workflow_dispatch with `teku_ref=<tag>`; it is pushed as `ethpandaops/temu:<tag>-<sha7>` and never moves `latest`
 
 ## Development
 
@@ -235,7 +237,8 @@ Temu uses a plugin-based architecture to integrate Xatu with Teku:
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `check-patches.yml` | Daily (cron) | Clones upstream, applies patches, builds. Auto-commits if patches needed updating |
-| `docker.yml` | Push to master / release | Builds via `./gradlew distDocker`, tags + pushes multi-arch image to `ethpandaops/temu:<tag>` |
+| `docker.yml` | Push to master / release / manual (`teku_ref` input) | Builds via `./gradlew distDocker`, tags + pushes multi-arch image to `ethpandaops/temu:<tag>` |
+| `integration-test.yml` | PR / push touching patches, plugins or scripts | Kurtosis devnet per patched teku ref, passes once a xatu event arrives |
 | `validate-patches.yml` | PR | Validates patch file structure (hunk counts, etc.) |
 
 ## Requirements

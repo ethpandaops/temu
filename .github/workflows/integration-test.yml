@@ -18,9 +18,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  discover-refs:
+    runs-on: ubuntu-latest
+    outputs:
+      refs: ${{ steps.refs.outputs.refs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List teku refs with a patch
+        id: refs
+        run: |
+          refs=$(find patches/consensys/teku -name '*.patch' -type f | sed 's|^patches/consensys/teku/||; s|\.patch$||' | sort | jq -Rsc 'split("\n") | map(select(length > 0))')
+          echo "Teku refs: $refs"
+          echo "refs=$refs" >> $GITHUB_OUTPUT
+
   integration-test:
+    needs: discover-refs
+    name: integration-test (${{ matrix.teku_ref }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        teku_ref: ${{ fromJson(needs.discover-refs.outputs.refs) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,7 +63,7 @@ jobs:
 
       - name: Prepare patched source
         run: |
-          ./scripts/temu-build.sh -r "consensys/teku" -b "master" --skip-build --ci
+          ./scripts/temu-build.sh -r "consensys/teku" -b "${{ matrix.teku_ref }}" --skip-build --ci
 
       - name: Build Docker image
         run: |
