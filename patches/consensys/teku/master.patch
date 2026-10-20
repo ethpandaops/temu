@@ -418,7 +418,7 @@ index 08c4734..060cafb 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 52e88d4..583bf1b 100644
+index 8efce17..1012127 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -71,6 +71,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
@@ -429,7 +429,7 @@ index 52e88d4..583bf1b 100644
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -2139,6 +2140,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2141,6 +2142,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -439,7 +439,7 @@ index 52e88d4..583bf1b 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2742,6 +2746,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2744,6 +2748,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
@@ -509,10 +509,10 @@ index 92a40d4..9b932b7 100644
  	implementation project(':services:chainstorage')
  	implementation project(':services:executionlayer')
 diff --git a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-index 37b4fea..0269970 100644
+index 73f2882..e2d3adb 100644
 --- a/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
 +++ b/teku/src/main/java/tech/pegasys/teku/cli/options/P2POptions.java
-@@ -518,6 +518,13 @@ public class P2POptions {
+@@ -519,6 +519,13 @@ public class P2POptions {
        fallbackValue = "true")
    private boolean allTopicsFilterEnabled = P2PConfig.DEFAULT_PEER_ALL_TOPIC_FILTER_ENABLED;
  
@@ -526,7 +526,7 @@ index 37b4fea..0269970 100644
    @Option(
        names = {"--Xexecution-proof-topics-enabled"},
        paramLabel = "<BOOLEAN>",
-@@ -755,6 +762,11 @@ public class P2POptions {
+@@ -781,6 +788,11 @@ public class P2POptions {
    }
  
    public void configure(final TekuConfiguration.Builder builder) {
