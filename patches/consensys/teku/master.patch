@@ -418,7 +418,7 @@ index 08c4734..060cafb 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 8efce17..1012127 100644
+index 0c5c1d8..aea81db 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -71,6 +71,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
@@ -439,7 +439,7 @@ index 8efce17..1012127 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2744,6 +2748,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2749,6 +2753,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
