@@ -1,8 +1,8 @@
 diff --git a/build.gradle b/build.gradle
-index 0675125..24f6851 100644
+index 4acdfe1..4a36d1a 100644
 --- a/build.gradle
 +++ b/build.gradle
-@@ -951,6 +951,28 @@ tasks.register('localDocker') {
+@@ -952,6 +952,28 @@ tasks.register('localDocker') {
  			from file("${projectDir}/docker/${dockerJdkVariants[0]}/Dockerfile")
  			into(dockerBuildDir)
  		}
@@ -31,7 +31,7 @@ index 0675125..24f6851 100644
  		system.executor.exec {
  			def image = "${localDockerImage}:${dockerBuildVersion}-${dockerJdkVariants[0]}${commitHashTag}"
  			workingDir dockerBuildDir
-@@ -992,6 +1014,28 @@ tasks.register('distDocker')  {
+@@ -993,6 +1015,28 @@ tasks.register('distDocker')  {
  	doLast {
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
@@ -418,10 +418,10 @@ index 08c4734..060cafb 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 0c5c1d8..aea81db 100644
+index e1817be..d274171 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-@@ -71,6 +71,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
+@@ -70,6 +70,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
  import tech.pegasys.teku.dataproviders.lookup.ExecutionPayloadProvider;
  import tech.pegasys.teku.dataproviders.lookup.SingleBlockProvider;
  import tech.pegasys.teku.dataproviders.lookup.UnblindingExecutionPayloadProvider;
@@ -429,7 +429,7 @@ index 0c5c1d8..aea81db 100644
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -2141,6 +2142,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2132,6 +2133,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -439,7 +439,7 @@ index 0c5c1d8..aea81db 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2749,6 +2753,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2740,6 +2744,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
