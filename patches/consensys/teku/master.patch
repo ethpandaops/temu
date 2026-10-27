@@ -61,10 +61,10 @@ index 4acdfe1..4a36d1a 100644
  			system.fs.copy {
  				from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index a316c3d..f62b6f3 100644
+index 51192bf..e268c10 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
-@@ -40,9 +40,15 @@ WORKDIR /opt/teku
+@@ -56,9 +56,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
@@ -81,10 +81,10 @@ index a316c3d..f62b6f3 100644
  ENV TEKU_VALIDATOR_API_INTERFACE="0.0.0.0"
  ENV TEKU_METRICS_INTERFACE="0.0.0.0"
 diff --git a/docker/jdk26/Dockerfile b/docker/jdk26/Dockerfile
-index 2005e3d..689aeb3 100644
+index bfa29f7..bfbe34f 100644
 --- a/docker/jdk26/Dockerfile
 +++ b/docker/jdk26/Dockerfile
-@@ -39,9 +39,15 @@ WORKDIR /opt/teku
+@@ -55,9 +55,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
