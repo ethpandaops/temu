@@ -418,7 +418,7 @@ index 08c4734..060cafb 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 44bfedb..00187b8 100644
+index c1a099b..c95d59d 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -70,6 +70,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
@@ -429,7 +429,7 @@ index 44bfedb..00187b8 100644
  import tech.pegasys.teku.ethereum.events.ExecutionClientEventsChannel;
  import tech.pegasys.teku.ethereum.events.SlotEventsChannel;
  import tech.pegasys.teku.ethereum.execution.types.Eth1Address;
-@@ -2150,6 +2151,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2154,6 +2155,9 @@ public class BeaconChainController extends Service implements BeaconChainControl
        return;
      }
  
@@ -439,7 +439,7 @@ index 44bfedb..00187b8 100644
      DiscoveryConfig discoveryConfig = beaconConfig.p2pConfig().getDiscoveryConfig();
      final Optional<Integer> maybeUdpPort =
          discoveryConfig.isDiscoveryEnabled()
-@@ -2768,6 +2772,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
+@@ -2769,6 +2773,44 @@ public class BeaconChainController extends Service implements BeaconChainControl
          genesisState.getGenesisTime());
    }
  
