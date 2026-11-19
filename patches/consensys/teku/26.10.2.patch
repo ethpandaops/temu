@@ -61,10 +61,32 @@ index 0675125..24f6851 100644
  			system.fs.copy {
  				from file("${projectDir}/docker/${variant}/Dockerfile")
 diff --git a/docker/jdk25/Dockerfile b/docker/jdk25/Dockerfile
-index a316c3d..f62b6f3 100644
+index a316c3d..c4b5031 100644
 --- a/docker/jdk25/Dockerfile
 +++ b/docker/jdk25/Dockerfile
-@@ -40,9 +40,15 @@ WORKDIR /opt/teku
+@@ -1,6 +1,21 @@
+ ARG BASE_IMAGE_PREFIX=mirror.gcr.io/library/
+ FROM ${BASE_IMAGE_PREFIX}eclipse-temurin:25 AS jre-build
+ 
++# Eclipse Temurin 25.0.5.1+2 fixes CVE-2026-114938 (Java4Shell) in the x86-64 Base64 intrinsic.
++# Until eclipse-temurin:25 ships it, amd64 builds swap in Adoptium's release tarball, checked
++# against the SHA-256 Adoptium publishes. arm64 is not affected and has no 25.0.5.1 build yet,
++# so it keeps the base image's JDK.
++ADD https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5.1_2.tar.gz /tmp/openjdk.tar.gz
++RUN set -eux; \
++    if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
++      echo "760f91b22c3efc9bd1b64ff950598231be82928cc807e30691a0e7a2995a62c0  /tmp/openjdk.tar.gz" | sha256sum -c -; \
++      rm -rf "$JAVA_HOME"; \
++      mkdir -p "$JAVA_HOME"; \
++      tar -xzf /tmp/openjdk.tar.gz -C "$JAVA_HOME" --strip-components=1 --no-same-owner; \
++    fi; \
++    rm /tmp/openjdk.tar.gz; \
++    "$JAVA_HOME/bin/java" -version
++
+ # Create a custom Java runtime
+ RUN $JAVA_HOME/bin/jlink \
+          --add-modules java.base \
+@@ -40,9 +55,15 @@ WORKDIR /opt/teku
  # copy application (with libraries inside)
  COPY --chown=teku:teku teku /opt/teku/
  
