@@ -73,6 +73,10 @@ jobs:
           fi
 
       - name: Build Docker image via Gradle
+        env:
+          # Keep the pushed image a single-platform manifest, even with the
+          # containerd image store.
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         run: |
           cd teku
           ./gradlew distDocker
@@ -135,6 +139,10 @@ jobs:
           fi
 
       - name: Build Docker image via Gradle
+        env:
+          # Keep the pushed image a single-platform manifest, even with the
+          # containerd image store.
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         run: |
           cd teku
           ./gradlew distDocker
