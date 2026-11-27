@@ -54,7 +54,6 @@ public class XatuPlugin implements GossipMessageAcceptedChannel {
       final int secondsPerSlot) {
     if (!core.initialize(
         configPath, genesisTime, networkName, networkId, slotsPerEpoch, secondsPerSlot)) {
-      LOG.error("Failed to initialize xatu plugin");
       return;
     }
 

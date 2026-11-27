@@ -7,7 +7,7 @@ index 0675125..24f6851 100644
  			into(dockerBuildDir)
  		}
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.7"
++		def xatuVersion = "v0.1.1"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"
@@ -36,7 +36,7 @@ index 0675125..24f6851 100644
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.7"
++		def xatuVersion = "v0.1.1"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"
@@ -471,7 +471,7 @@ index 6010417..55a69df 100644
 +      } catch (ClassNotFoundException e) {
 +        LOG.debug("Xatu plugin not available");
 +      } catch (Exception e) {
-+        LOG.error("Failed to initialize Xatu plugin", e);
++        throw new IllegalStateException("Failed to initialize Xatu plugin", e);
 +      }
 +    }
 +  }
