@@ -1,5 +1,5 @@
 diff --git a/build.gradle b/build.gradle
-index 0675125..24f6851 100644
+index 0675125..4a54ae2 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -951,6 +951,28 @@ tasks.register('localDocker') {
@@ -435,7 +435,7 @@ index c06baf2..5ea1e84 100644
    }
  }
 diff --git a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
-index 6010417..55a69df 100644
+index 6010417..9914c6e 100644
 --- a/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 +++ b/services/beaconchain/src/main/java/tech/pegasys/teku/services/beaconchain/BeaconChainController.java
 @@ -71,6 +71,7 @@ import tech.pegasys.teku.dataproviders.lookup.BlindedExecutionPayloadProvider;
