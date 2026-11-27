@@ -7,7 +7,7 @@ index 3a81ad3..1da067b 100644
  			into(dockerBuildDir)
  		}
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.7"
++		def xatuVersion = "v0.1.1"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"
@@ -36,7 +36,7 @@ index 3a81ad3..1da067b 100644
  		def includeCommitHashInDockerTag = project.hasProperty('includeCommitHashInDockerTag') && project.property('includeCommitHashInDockerTag').toBoolean()
  		def commitHashTag = includeCommitHashInDockerTag ? '-' + gitCommitHashShort() : ''
 +		// Download and copy xatu native library
-+		def xatuVersion = "v0.0.7"
++		def xatuVersion = "v0.1.1"
 +		def libxatuFile = file("${projectDir}/libxatu.so")
 +		if (!libxatuFile.exists()) {
 +			def platform = "linux"
