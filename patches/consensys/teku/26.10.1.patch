@@ -471,7 +471,7 @@ index 6010417..55a69df 100644
 +      } catch (ClassNotFoundException e) {
 +        LOG.debug("Xatu plugin not available");
 +      } catch (Exception e) {
-+        LOG.error("Failed to initialize Xatu plugin", e);
++        throw new IllegalStateException("Failed to initialize Xatu plugin", e);
 +      }
 +    }
 +  }

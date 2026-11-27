@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Queue;
@@ -79,7 +81,9 @@ public class XatuSidecarCore {
    * @param networkId the deposit network ID from the spec
    * @param slotsPerEpoch the slots per epoch from the spec
    * @param secondsPerSlot the seconds per slot from the spec
-   * @return true if initialization succeeded
+   * @return true if initialization succeeded, false if xatu is disabled in config
+   * @throws UncheckedIOException if the config file cannot be read
+   * @throws IllegalStateException if the native library rejects the config
    */
   public boolean initialize(
       final String configPath,
@@ -173,9 +177,9 @@ public class XatuSidecarCore {
 
       int result = XatuNativeLibrary.INSTANCE.Init(configBytes);
       if (result != 0) {
-        LOG.error("Failed to initialize xatu native library, error code: {}", result);
         initialized.set(false);
-        return false;
+        throw new IllegalStateException(
+            "Failed to initialize xatu native library, error code: " + result);
       }
 
       // Start the batch flush scheduler
@@ -186,10 +190,9 @@ public class XatuSidecarCore {
 
       LOG.info("Xatu sidecar initialized successfully");
       return true;
-    } catch (Exception e) {
-      LOG.error("Failed to initialize xatu sidecar", e);
+    } catch (IOException e) {
       initialized.set(false);
-      return false;
+      throw new UncheckedIOException("Failed to read xatu config " + configPath, e);
     }
   }
 
